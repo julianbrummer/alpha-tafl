@@ -1,7 +1,7 @@
+from tafl.pytorch.NNet import NNetWrapper as nn
 from Coach import Coach
-from othello.OthelloGame import OthelloGame as Game
-from othello.pytorch.NNet import NNetWrapper as nn
-from utils import *
+from tafl.TaflGame import TaflGame
+from utils import dotdict
 
 args = dotdict({
     'numIters': 1000,
@@ -21,7 +21,8 @@ args = dotdict({
 })
 
 if __name__=="__main__":
-    g = Game(6)
+    #  g = OthelloGame(6)
+    g = TaflGame(7)
     nnet = nn(g)
 
     if args.load_model:
