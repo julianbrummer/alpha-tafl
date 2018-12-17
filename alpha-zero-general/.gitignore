@@ -1,6 +1,6 @@
 *.pyc
 .DS_Store
-
+.idea/
 /temp/
 /.project
 /.pydevproject
@@ -14,7 +14,6 @@ Arena.py
 Coach.py
 Game.py
 LICENSE
-MCTS.py
 NeuralNet.py
 pit.py
 README.md
