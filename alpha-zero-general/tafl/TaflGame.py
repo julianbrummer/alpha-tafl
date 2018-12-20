@@ -1,5 +1,14 @@
-import Game
+from enum import IntEnum
 
+import numpy as np
+
+from Game import Game
+from tafl.TaflBoard import Outcome, Player, TaflBoard
+
+
+class MovementType(IntEnum):
+    horizontal = 0
+    vertical = 1
 
 class TaflGame(Game):
     """
@@ -12,8 +21,10 @@ class TaflGame(Game):
     See othello/OthelloGame.py for an example implementation.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, size):
+        if size != 11 and size != 9 and size != 7:
+            raise ValueError
+        self.size = size
 
     def getInitBoard(self):
         """
@@ -21,21 +32,23 @@ class TaflGame(Game):
             startBoard: a representation of the board (ideally this is the form
                         that will be the input to your neural network)
         """
-        pass
+        return TaflBoard(self.size)
 
     def getBoardSize(self):
         """
-        Returns:
-            (x,y): a tuple of board dimensions
+            Returns:
+                (x,y): a tuple of board dimensions
         """
-        pass
+        return self.size, self.size
 
     def getActionSize(self):
         """
         Returns:
             actionSize: number of all possible actions
         """
-        pass
+        # size*size to select the piece to move
+        # size for horizontal movement, size for vertical movement, so size*2 to select the action to take
+        return self.size*self.size*self.size*2
 
     def getNextState(self, board, player, action):
         """
@@ -48,7 +61,16 @@ class TaflGame(Game):
             nextBoard: board after applying action
             nextPlayer: player who plays in the next turn (should be -player)
         """
-        pass
+
+        from_x, from_y, to, movement_type = np.unravel_index(action, (self.size, self.size, self.size, 2))
+        if movement_type == MovementType.horizontal:
+            action = ((from_x + 1, from_y + 1), (to + 1, from_y + 1))   # all coordinates + 1 because of the border
+        else:
+            action = ((from_x + 1, from_y + 1), (from_x + 1, to + 1))   # all coordinates + 1 because of the border
+
+        board.do_action(action, player)
+        next_player = -1 if player == 1 else 1
+        return board, next_player
 
     def getValidMoves(self, board, player):
         """
@@ -61,7 +83,15 @@ class TaflGame(Game):
                         moves that are valid from the current board and player,
                         0 for invalid moves
         """
-        pass
+        array = np.zeros((self.size, self.size, self.size, 2))  # see comment in getActionSize()
+                                            # use 0 for horizontal movement indexing, 1 for vertical movement indexing
+        for (x_from, y_from), (x_to, y_to) in board.get_valid_actions(player):
+            movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
+            to = x_to if movement_type == MovementType.horizontal else y_to
+            array[x_from - 1, y_from - 1, to - 1, movement_type] = 1    # all coordinates -1 because of the border
+            # print(str(((x_from, y_from), (x_to, y_to))))
+            # print(str((x_from, y_from, to, movement_type)))
+        return array.ravel()
 
     def getGameEnded(self, board, player):
         """
@@ -74,7 +104,14 @@ class TaflGame(Game):
                small non-zero value for draw.
 
         """
-        pass
+        if board.outcome == Outcome.ongoing:
+            return 0
+        elif board.outcome == Outcome.draw:
+            return 0.0000001
+        elif board.outcome == Outcome.black:
+            return 1 if player == Player.black else -1
+        else:
+            return -1 if player == Player.black else 1
 
     def getCanonicalForm(self, board, player):
         """
@@ -90,7 +127,8 @@ class TaflGame(Game):
                             board as is. When the player is black, we can invert
                             the colors and return the board.
         """
-        pass
+        # canonical form isn't really possible because of the asymmetric nature of tafl
+        return board
 
     def getSymmetries(self, board, pi):
         """
@@ -103,7 +141,7 @@ class TaflGame(Game):
                        form of the board and the corresponding pi vector. This
                        is used when training the neural network from examples.
         """
-        pass
+        raise NotImplementedError
 
     def stringRepresentation(self, board):
         """
@@ -114,4 +152,4 @@ class TaflGame(Game):
             boardString: a quick conversion of board to a string format.
                          Required by MCTS for hashing.
         """
-        pass
+        return board.board.tostring()
