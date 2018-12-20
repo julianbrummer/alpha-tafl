@@ -2,14 +2,15 @@ import argparse
 import os
 import shutil
 import time
-import random
 import numpy as np
-import math
 import sys
-sys.path.append('../../')
-from utils import *
-from pytorch_classification.utils import Bar, AverageMeter
+
 from NeuralNet import NeuralNet
+from pytorch_classification.utils import AverageMeter
+from pytorch_classification.utils.progress.progress.bar import Bar
+from utils import dotdict
+
+sys.path.append('../../')
 
 import argparse
 import torch
@@ -115,7 +116,7 @@ class NNetWrapper(NeuralNet):
         start = time.time()
 
         # preparing input
-        board = torch.FloatTensor(board.astype(np.float64))
+        board = torch.FloatTensor(board.board[1: self.board_x + 1, 1: self.board_y + 1].astype(np.float64))
         if args.cuda: board = board.contiguous().cuda()
         with torch.no_grad():
             board = Variable(board)
