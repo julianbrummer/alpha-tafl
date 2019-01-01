@@ -231,6 +231,10 @@ class TaflBoard:
     # executes "move" for the player "player" whose turn it is
     # except when the game is already over. In this case it does nothing
     def do_action(self, move, player):
+        # return immediately if game over
+        if self.outcome != Outcome.ongoing:
+            return
+
         if self.save_game:
             print("File opened")
             url = __file__[:-28]
@@ -238,10 +242,6 @@ class TaflBoard:
             file = open(game_filename,"a+")
             entry = ""
             entry += str(move) + " \n"
-
-        # return immediately if game over
-        if self.outcome != Outcome.ongoing:
-            return
 
         (from_x, from_y), (to_x, to_y) = move
         if self.can_do_action(move, player):
@@ -296,7 +296,8 @@ class TaflBoard:
             return captured_pieces
         else:
             raise Exception(str(player) + " tried to make move " + str(move) + ", but that move is not possible. "
-                                                                               "Current board:\n" + self.__str__())
+                                                                               "Current board:\n" + self.__str__()
+                            + "\npossible actions: " + str(self.get_valid_actions(player)))
 
     # captures all enemy pieces around the position "position_to" that the player "player" has just moved a piece to
     def capture(self, position_to, turn_player):

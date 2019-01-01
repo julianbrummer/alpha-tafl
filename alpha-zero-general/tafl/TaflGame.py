@@ -69,6 +69,7 @@ class TaflGame(Game):
         else:
             action = ((from_x + 1, from_y + 1), (from_x + 1, to + 1))   # all coordinates + 1 because of the border
 
+        board = copy.deepcopy(board)
         board.do_action(action, player)
         next_player = -1 if player == 1 else 1
         return board, next_player
@@ -108,7 +109,7 @@ class TaflGame(Game):
         if board.outcome == Outcome.ongoing:
             return 0
         elif board.outcome == Outcome.draw:
-            return 0.0000001
+            return 0.000001
         elif board.outcome == Outcome.black:
             return 1 if player == Player.black else -1
         else:
@@ -142,7 +143,8 @@ class TaflGame(Game):
                        form of the board and the corresponding pi vector. This
                        is used when training the neural network from examples.
         """
-        raise NotImplementedError
+        # TODO implement
+        return []
 
     def stringRepresentation(self, board):
         """
