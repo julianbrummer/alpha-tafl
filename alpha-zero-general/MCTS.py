@@ -41,6 +41,7 @@ class MCTS():
             return probs
 
         counts = [x**(1./temp) for x in counts]
+        print(str(counts))
         probs = [x/float(sum(counts)) for x in counts]
         return probs
 
@@ -65,64 +66,79 @@ class MCTS():
             v: the negative of the value of the current canonicalBoard
         """
 
-        s = self.game.stringRepresentation(canonicalBoard)
+        value_stack = []
 
-        if s not in self.Es:
-            self.Es[s] = self.game.getGameEnded(canonicalBoard, 1)
-        if self.Es[s]!=0:
-            # terminal node
-            return -self.Es[s]
+        # build stack
+        while True:
+            s = self.game.stringRepresentation(canonicalBoard)
 
-        if s not in self.Ps:
-            # leaf node
-            self.Ps[s], v = self.nnet.predict(canonicalBoard)
-            valids = self.game.getValidMoves(canonicalBoard, 1)
-            self.Ps[s] = self.Ps[s]*valids      # masking invalid moves
-            sum_Ps_s = np.sum(self.Ps[s])
-            if sum_Ps_s > 0:
-                self.Ps[s] /= sum_Ps_s    # renormalize
-            else:
-                # if all valid moves were masked make all valid moves equally probable
-                
-                # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
-                # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.   
-                print("All valid moves were masked, do workaround.")
-                self.Ps[s] = self.Ps[s] + valids
-                self.Ps[s] /= np.sum(self.Ps[s])
+            if s not in self.Es:
+                self.Es[s] = self.game.getGameEnded(canonicalBoard, 1)
+            if self.Es[s] != 0:
+                # terminal node
+                last_iteration_v = -self.Es[s]
+                break
 
-            self.Vs[s] = valids
-            self.Ns[s] = 0
-            return -v
-
-        valids = self.Vs[s]
-        cur_best = -float('inf')
-        best_act = -1
-
-        # pick the action with the highest upper confidence bound
-        for a in range(self.game.getActionSize()):
-            if valids[a]:
-                if (s,a) in self.Qsa:
-                    u = self.Qsa[(s,a)] + self.args.cpuct*self.Ps[s][a]*math.sqrt(self.Ns[s])/(1+self.Nsa[(s,a)])
+            if s not in self.Ps:
+                # leaf node
+                self.Ps[s], v = self.nnet.predict(canonicalBoard)
+                valids = self.game.getValidMoves(canonicalBoard, 1)
+                self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
+                sum_Ps_s = np.sum(self.Ps[s])
+                if sum_Ps_s > 0:
+                    self.Ps[s] /= sum_Ps_s  # renormalize
                 else:
-                    u = self.args.cpuct*self.Ps[s][a]*math.sqrt(self.Ns[s] + EPS)     # Q = 0 ?
+                    # if all valid moves were masked make all valid moves equally probable
 
-                if u > cur_best:
-                    cur_best = u
-                    best_act = a
+                    # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
+                    # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.
+                    print("All valid moves were masked, do workaround.")
+                    self.Ps[s] = self.Ps[s] + valids
+                    self.Ps[s] /= np.sum(self.Ps[s])
 
-        a = best_act
-        next_s, next_player = self.game.getNextState(canonicalBoard, 1, a)
-        next_s = self.game.getCanonicalForm(next_s, next_player)
+                self.Vs[s] = valids
+                self.Ns[s] = 0
+                last_iteration_v = -v
+                break
 
-        v = self.search(next_s)
+            valids = self.Vs[s]
+            cur_best = -float('inf')
+            best_act = -1
 
-        if (s,a) in self.Qsa:
-            self.Qsa[(s,a)] = (self.Nsa[(s,a)]*self.Qsa[(s,a)] + v)/(self.Nsa[(s,a)]+1)
-            self.Nsa[(s,a)] += 1
+            # pick the action with the highest upper confidence bound
+            for a in range(self.game.getActionSize()):
+                if valids[a]:
+                    if (s, a) in self.Qsa:
+                        u = self.Qsa[(s, a)] + self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s]) / (
+                                    1 + self.Nsa[(s, a)])
+                    else:
+                        u = self.args.cpuct * self.Ps[s][a] * math.sqrt(self.Ns[s] + EPS)  # Q = 0 ?
 
-        else:
-            self.Qsa[(s,a)] = v
-            self.Nsa[(s,a)] = 1
+                    if u > cur_best:
+                        cur_best = u
+                        best_act = a
 
-        self.Ns[s] += 1
-        return -v
+            a = best_act
+            next_s, next_player = self.game.getNextState(canonicalBoard, 1, a)
+            canonicalBoard = self.game.getCanonicalForm(next_s, next_player)
+
+            value_stack.append((s, a))
+            print("stack depth: " + str(len(value_stack)))
+
+        # take from stack
+        while len(value_stack) > 0:
+            print("stack depth: " + str(len(value_stack)))
+            s, a = value_stack.pop()
+
+            if (s, a) in self.Qsa:
+                self.Qsa[(s, a)] = (self.Nsa[(s, a)] * self.Qsa[(s, a)] + last_iteration_v) / (self.Nsa[(s, a)] + 1)
+                self.Nsa[(s, a)] += 1
+
+            else:
+                self.Qsa[(s, a)] = last_iteration_v
+                self.Nsa[(s, a)] = 1
+
+            self.Ns[s] += 1
+            last_iteration_v = -last_iteration_v
+
+        return -last_iteration_v

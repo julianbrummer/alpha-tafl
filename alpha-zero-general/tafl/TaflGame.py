@@ -1,3 +1,4 @@
+import copy
 from enum import IntEnum
 
 import numpy as np
@@ -128,7 +129,7 @@ class TaflGame(Game):
                             the colors and return the board.
         """
         # canonical form isn't really possible because of the asymmetric nature of tafl
-        return board
+        return copy.deepcopy(board)
 
     def getSymmetries(self, board, pi):
         """
