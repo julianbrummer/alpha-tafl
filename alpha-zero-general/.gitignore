@@ -10,7 +10,6 @@
 /pretrained_models/
 /pytorch_classification/
 /tictactoe/
-Arena.py
 Game.py
 LICENSE
 NeuralNet.py

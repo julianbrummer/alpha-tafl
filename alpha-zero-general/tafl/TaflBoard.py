@@ -295,7 +295,7 @@ class TaflBoard:
                     file.close()
             return captured_pieces
         else:
-            raise Exception(str(player) + " tried to make move " + str(move) + ", but that move is not possible. "
+            raise Exception(str(Player(player)) + " tried to make move " + str(move) + ", but that move is not possible. "
                                                                                "Current board:\n" + self.__str__()
                             + "\npossible actions: " + str(self.get_valid_actions(player)))
 
@@ -427,4 +427,4 @@ class TaflBoard:
         #     raise Exception("undo_last_action() failed because there is no action left to revert.")
 
     def __str__(self):
-        return str(self.board)
+        return np.array_str(self.board) + str(self.board_states_dict[self.board.tobytes()])

@@ -7,6 +7,9 @@ import time, os, sys
 from pickle import Pickler, Unpickler
 from random import shuffle
 
+from tafl.TaflBoard import Player
+from tafl.TaflGame import MovementType
+
 
 class Coach():
     """
@@ -45,6 +48,7 @@ class Coach():
 
         while True:
             episodeStep += 1
+            # print("turn " + str(episodeStep))
             canonicalBoard = self.game.getCanonicalForm(board,self.curPlayer)
             temp = int(episodeStep < self.args.tempThreshold)
 
@@ -54,7 +58,7 @@ class Coach():
                 trainExamples.append([b, self.curPlayer, p, None])
 
             action = np.random.choice(len(pi), p=pi)
-            print("Move number " + str(episodeStep))
+
             board, self.curPlayer = self.game.getNextState(board, self.curPlayer, action)
 
             r = self.game.getGameEnded(board, self.curPlayer)
@@ -119,8 +123,8 @@ class Coach():
             nmcts = MCTS(self.game, self.nnet, self.args)
 
             print('PITTING AGAINST PREVIOUS VERSION')
-            arena = Arena(lambda x: np.argmax(pmcts.getActionProb(x, temp=0)),
-                          lambda x: np.argmax(nmcts.getActionProb(x, temp=0)), self.game)
+            arena = Arena(lambda x, player: np.argmax(pmcts.getActionProb(x, player, temp=0)),
+                          lambda x, player: np.argmax(nmcts.getActionProb(x, player, temp=0)), self.game)
             pwins, nwins, draws = arena.playGames(self.args.arenaCompare)
 
             print('NEW/PREV WINS : %d / %d ; DRAWS : %d' % (nwins, pwins, draws))

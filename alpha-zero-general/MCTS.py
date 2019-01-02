@@ -1,5 +1,9 @@
 import math
 import numpy as np
+
+from tafl.TaflBoard import Player
+from tafl.TaflGame import MovementType
+
 EPS = 1e-8
 
 class MCTS():
@@ -29,12 +33,15 @@ class MCTS():
                    proportional to Nsa[(s,a)]**(1./temp)
         """
         for i in range(self.args.numMCTSSims):
+            # print("    search number " + str(i))
             self.search(canonicalBoard, this_player)
 
-        s = self.game.stringRepresentation(canonicalBoard)
+        s = self.game.stringRepresentation(canonicalBoard) + str(this_player)   # this addition is needed so that
+        # the search algorithm doesn't get confused when the same board state as before is reached, but it's the
+        # other player's turn
         counts = [self.Nsa[(s,a)] if (s,a) in self.Nsa else 0 for a in range(self.game.getActionSize())]
 
-        if temp==0:
+        if temp == 0:
             bestA = np.argmax(counts)
             probs = [0]*len(counts)
             probs[bestA]=1
@@ -67,10 +74,22 @@ class MCTS():
 
         value_stack = []
         next_player = this_player
+        iteration = 0
 
         # build stack
         while True:
-            s = self.game.stringRepresentation(canonicalBoard)
+            # workaround because in some cases this function doesn't stop (bug might exist in the original version also)
+            # print("             iteration " + str(iteration))
+            iteration += 1
+            if iteration > 50:
+                print("more MCTS search iterations than the maximum, breaking out of possibly infinite loop!")
+                return
+
+            # workaround end
+
+            s = self.game.stringRepresentation(canonicalBoard) + str(next_player)   # this addition is needed so that
+            # the search algorithm doesn't get confused when the same board state as before is reached, but it's the
+            # other player's turn
 
             if s not in self.Es:
                 self.Es[s] = self.game.getGameEnded(canonicalBoard, next_player)
@@ -119,6 +138,7 @@ class MCTS():
                         best_act = a
 
             a = best_act
+
             next_s, next_player = self.game.getNextState(canonicalBoard, next_player, a)
             canonicalBoard = self.game.getCanonicalForm(next_s, next_player)
 

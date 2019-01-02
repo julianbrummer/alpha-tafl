@@ -63,16 +63,20 @@ class TaflGame(Game):
             nextPlayer: player who plays in the next turn (should be -player)
         """
 
-        from_x, from_y, to, movement_type = np.unravel_index(action, (self.size, self.size, self.size, 2))
-        if movement_type == MovementType.horizontal:
-            action = ((from_x + 1, from_y + 1), (to + 1, from_y + 1))   # all coordinates + 1 because of the border
-        else:
-            action = ((from_x + 1, from_y + 1), (from_x + 1, to + 1))   # all coordinates + 1 because of the border
+        action = self.action_conversion__index_to_explicit(action)
 
         board = copy.deepcopy(board)
         board.do_action(action, player)
         next_player = -1 if player == 1 else 1
         return board, next_player
+
+    def action_conversion__index_to_explicit(self, action):
+        from_x, from_y, to, movement_type = np.unravel_index(action, (self.size, self.size, self.size, 2))
+        if movement_type == MovementType.horizontal:
+            action = ((from_x + 1, from_y + 1), (to + 1, from_y + 1))  # all coordinates + 1 because of the border
+        else:
+            action = ((from_x + 1, from_y + 1), (from_x + 1, to + 1))  # all coordinates + 1 because of the border
+        return action
 
     def getValidMoves(self, board, player):
         """
@@ -88,12 +92,14 @@ class TaflGame(Game):
         array = np.zeros((self.size, self.size, self.size, 2))  # see comment in getActionSize()
                                             # use 0 for horizontal movement indexing, 1 for vertical movement indexing
         for (x_from, y_from), (x_to, y_to) in board.get_valid_actions(player):
-            movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
-            to = x_to if movement_type == MovementType.horizontal else y_to
-            array[x_from - 1, y_from - 1, to - 1, movement_type] = 1    # all coordinates -1 because of the border
-            # print(str(((x_from, y_from), (x_to, y_to))))
-            # print(str((x_from, y_from, to, movement_type)))
+            self.action_conversion__explicit_to_indices(array, x_from, x_to, y_from, y_to)
+
         return array.ravel()
+
+    def action_conversion__explicit_to_indices(self, array, x_from, x_to, y_from, y_to):
+        movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
+        to = x_to if movement_type == MovementType.horizontal else y_to
+        array[x_from - 1, y_from - 1, to - 1, movement_type] = 1  # all coordinates -1 because of the border
 
     def getGameEnded(self, board, player):
         """
@@ -155,4 +161,4 @@ class TaflGame(Game):
             boardString: a quick conversion of board to a string format.
                          Required by MCTS for hashing.
         """
-        return board.board.tostring()
+        return str(board)
