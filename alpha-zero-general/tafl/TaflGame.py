@@ -150,7 +150,7 @@ class TaflGame(Game):
                        is used when training the neural network from examples.
         """
         # TODO implement
-        return []
+        return [(board.board[1:self.size+1, 1:self.size+1], pi)]
 
     def stringRepresentation(self, board):
         """
