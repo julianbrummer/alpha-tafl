@@ -168,7 +168,7 @@ class TaflGame(Game):
         for index, prob in actions_and_probs:
             ((x_from,y_from),(x_to,y_to))=self.action_conversion__index_to_explicit(index)
             explicit=(self.size+1 - x_from, y_from),(self.size + 1- x_to, y_to)
-            temp_pi[self.action_conversion__explicit_to_indices(explicit)]
+            temp_pi[self.action_conversion__explicit_to_indices(explicit)]=prob
         temp_pi.ravel()
         symmetries.append((temp_board,temp_pi))
 
@@ -179,7 +179,7 @@ class TaflGame(Game):
         for index, prob in actions_and_probs:
             ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
             explicit = (self.size + 1 - x_from, self.size + 1 - y_from), (self.size + 1 - x_to, self.size + 1 - y_to)
-            temp_pi[self.action_conversion__explicit_to_indices(explicit)]
+            temp_pi[self.action_conversion__explicit_to_indices(explicit)]=prob
         temp_pi.ravel()
         symmetries.append((temp_board, temp_pi))
 
@@ -190,7 +190,7 @@ class TaflGame(Game):
         for index, prob in actions_and_probs:
             ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
             explicit = (x_from, self.size + 1 - y_from), (x_to, self.size + 1 - y_to)
-            temp_pi[self.action_conversion__explicit_to_indices(explicit)]
+            temp_pi[self.action_conversion__explicit_to_indices(explicit)]=prob
         temp_pi.ravel()
         symmetries.append((temp_board, temp_pi))
 
