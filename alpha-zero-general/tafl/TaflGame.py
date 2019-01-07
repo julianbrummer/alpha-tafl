@@ -91,15 +91,17 @@ class TaflGame(Game):
         """
         array = np.zeros((self.size, self.size, self.size, 2))  # see comment in getActionSize()
                                             # use 0 for horizontal movement indexing, 1 for vertical movement indexing
-        for (x_from, y_from), (x_to, y_to) in board.get_valid_actions(player):
-            self.action_conversion__explicit_to_indices(array, x_from, x_to, y_from, y_to)
+        for explicit in board.get_valid_actions(player):
+            index=self.action_conversion__explicit_to_indices( explicit)
+            array[index]=1
 
         return array.ravel()
 
-    def action_conversion__explicit_to_indices(self, array, x_from, x_to, y_from, y_to):
+    def action_conversion__explicit_to_indices(self, explicit):
+        (x_from,y_from),(x_to,y_to)=explicit
         movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
         to = x_to if movement_type == MovementType.horizontal else y_to
-        array[x_from - 1, y_from - 1, to - 1, movement_type] = 1  # all coordinates -1 because of the border
+        return (x_from - 1, y_from - 1, to - 1, movement_type)   # all coordinates -1 because of the border
 
     def getGameEnded(self, board, player):
         """
@@ -150,7 +152,51 @@ class TaflGame(Game):
                        is used when training the neural network from examples.
         """
         # TODO implement
-        return [(board.board[1:self.size+1, 1:self.size+1], pi)]
+        actions_and_probs=[(index,prob)for index,prob in enumerate(pi) if prob !=0]
+
+
+        symmetries=[]
+
+        #original
+        symmetries.append((board.board[1:self.size+1, 1:self.size+1], pi))
+
+        #vertical flip
+
+        temp_board=np.copy(board.board[1:self.size+1, 1:self.size+1])
+        np.flip(temp_board,0)
+        temp_pi=np.zeros((self.size,self.size,self.size,2))
+        for index, prob in actions_and_probs:
+            ((x_from,y_from),(x_to,y_to))=self.action_conversion__index_to_explicit(index)
+            explicit=(self.size+1 - x_from, y_from),(self.size + 1- x_to, y_to)
+            temp_pi[self.action_conversion__explicit_to_indices(explicit)]
+        temp_pi.ravel()
+        symmetries.append((temp_board,temp_pi))
+
+        # horizontal and vertical flip
+
+        np.flip(temp_board, 1)
+        temp_pi = np.zeros((self.size, self.size, self.size, 2))
+        for index, prob in actions_and_probs:
+            ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+            explicit = (self.size + 1 - x_from, self.size + 1 - y_from), (self.size + 1 - x_to, self.size + 1 - y_to)
+            temp_pi[self.action_conversion__explicit_to_indices(explicit)]
+        temp_pi.ravel()
+        symmetries.append((temp_board, temp_pi))
+
+        # horizontal flip
+
+        np.flip(temp_board, 0)
+        temp_pi = np.zeros((self.size, self.size, self.size, 2))
+        for index, prob in actions_and_probs:
+            ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+            explicit = (x_from, self.size + 1 - y_from), (x_to, self.size + 1 - y_to)
+            temp_pi[self.action_conversion__explicit_to_indices(explicit)]
+        temp_pi.ravel()
+        symmetries.append((temp_board, temp_pi))
+
+
+
+        return symmetries
 
     def stringRepresentation(self, board):
         """
