@@ -1,4 +1,5 @@
 import copy
+import random
 from enum import IntEnum
 
 import numpy as np
@@ -91,18 +92,36 @@ class TaflGame(Game):
         """
         array = np.zeros((self.size, self.size, self.size, 2))  # see comment in getActionSize()
                                             # use 0 for horizontal movement indexing, 1 for vertical movement indexing
-        for explicit in board.get_valid_actions(player):
-            index=self.action_conversion__explicit_to_indices( explicit)
-            array[index]=1
+        no_immediate_loss_possible = False
+        move_set = board.get_valid_actions(player)
+        for explicit in move_set:
+            board.do_action(explicit, player)
+            if board.outcome == Outcome.ongoing:
+                index = self.action_conversion__explicit_to_indices(explicit)
+                array[index]=1
+                no_immediate_loss_possible = True
+            board.undo_last_action()
 
-        assert array[0, 0, 0, 0] == 0
+        # if all possible moves lead to a loss...
+        if not no_immediate_loss_possible:
+            # ... check if there are actually moves that can be made. If not, just choose an impossible move and the
+            # board class will report the correct outcome. This is necessary because it is only in this method here
+            # that it is checked whether there are actually moves left. Meaning that the Outcome is set in the board
+            # class already, but the network is still asked to select a move. Therefore we need to give the program at
+            # least one move to choose from.
+            if len(move_set) == 0:
+                index = self.action_conversion__explicit_to_indices(((1, 1), (1, 2)))
+            else:
+                index = self.action_conversion__explicit_to_indices(random.choice(move_set))
+            array[index] = 1
+
         return array.ravel()
 
     def action_conversion__explicit_to_indices(self, explicit):
-        (x_from,y_from),(x_to,y_to)=explicit
+        (x_from, y_from), (x_to, y_to) = explicit
         movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
         to = x_to if movement_type == MovementType.horizontal else y_to
-        return (x_from - 1, y_from - 1, to - 1, movement_type)   # all coordinates -1 because of the border
+        return x_from - 1, y_from - 1, to - 1, movement_type   # all coordinates -1 because of the border
 
     def getGameEnded(self, board, player):
         """
