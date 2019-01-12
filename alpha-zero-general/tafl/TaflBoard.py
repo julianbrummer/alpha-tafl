@@ -65,6 +65,8 @@ class TaflBoard:
         # all instances of this class that are a copy of the original class.
         self.print_to_console = False
 
+        self.print_game_over_reason = False
+
         self.save_game = False
 
         # for reverting actions
@@ -184,7 +186,7 @@ class TaflBoard:
                 valid_actions.extend(self.get_valid_actions_for_piece(position))
         if len(valid_actions) == 0:
             self.outcome = Outcome.white if turn_player == Player.black else Outcome.black
-            if self.print_to_console:
+            if self.print_to_console or self.print_game_over_reason:
                 print("It is " + str(turn_player) + "'s turn, but they can't make any moves. "
                       + str(Player.white if turn_player == Player.black else Player.black) + " wins!")
         return valid_actions
@@ -261,7 +263,7 @@ class TaflBoard:
                 self.king_position = (to_x, to_y)
                 if self.board[self.king_position] == TileState.corner:
                     self.outcome = Outcome.white
-                    if self.print_to_console:
+                    if self.print_to_console or self.print_game_over_reason:
                         print("The king escapes to corner " + str((to_x, to_y)) + ". White wins!")
             # update the board itself and capture pieces if applicable
             self.board[to_x, to_y] = self.board[from_x, from_y]
@@ -275,12 +277,12 @@ class TaflBoard:
                 self.board_states_dict[board_bytes] += 1
                 if self.board_states_dict[board_bytes] == 3:
                     if player == Player.white:
-                        self.outcome=Outcome.black
-                        if self.print_to_console:
+                        self.outcome = Outcome.black
+                        if self.print_to_console or self.print_game_over_reason:
                             print("White forced the same board state for third time. Black wins!")
                     else:
-                        self.outcome=Outcome.white
-                        if self.print_to_console:
+                        self.outcome = Outcome.white
+                        if self.print_to_console or self.print_game_over_reason:
                             print("Black forced the same board state for third time. White wins!")
                     #self.outcome = Outcome.draw
                     #if self.print_to_console:
@@ -368,7 +370,7 @@ class TaflBoard:
                      or self.board[king_x, king_y - 1] == TileState.throne):
             self.outcome = Outcome.black
             captured_pieces.append((king_x, king_y))
-            if self.print_to_console:
+            if self.print_to_console or self.print_game_over_reason:
                 print("Black wins by capturing the king at " + str(self.king_position) + "!")
             if self.save_game:
                 entry += "4, " + str(self.king_position) + "\n"

@@ -67,7 +67,10 @@ class TaflGame(Game):
         action = self.action_conversion__index_to_explicit(action)
 
         board = copy.deepcopy(board)
-        board.do_action(action, player)
+        if action != ((1, 1), (1, 2)):
+            board.do_action(action, player)
+        else:
+            assert board.outcome != Outcome.ongoing
         next_player = -1 if player == 1 else 1
         return board, next_player
 
@@ -96,9 +99,10 @@ class TaflGame(Game):
         move_set = board.get_valid_actions(player)
         for explicit in move_set:
             board.do_action(explicit, player)
-            if board.outcome == Outcome.ongoing:
+            if (player == Player.white and board.outcome != Outcome.black) \
+                    or (player == Player.black and board.outcome != Outcome.white):
                 index = self.action_conversion__explicit_to_indices(explicit)
-                array[index]=1
+                array[index] = 1
                 no_immediate_loss_possible = True
             board.undo_last_action()
 
