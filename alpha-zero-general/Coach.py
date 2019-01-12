@@ -58,13 +58,15 @@ class Coach():
                 trainExamples.append([b, self.curPlayer, p, None])
 
             action = np.random.choice(len(pi), p=pi)
+            if action == 0:
+                print(pi)
 
             board, self.curPlayer = self.game.getNextState(board, self.curPlayer, action)
 
             r = self.game.getGameEnded(board, self.curPlayer)
 
             if r!=0:
-                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer))) for x in trainExamples]
+                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), (x[1],)) for x in trainExamples]
 
     def learn(self):
         """

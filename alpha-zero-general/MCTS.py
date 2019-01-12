@@ -81,7 +81,7 @@ class MCTS():
             # workaround because in some cases this function doesn't stop (bug might exist in the original version also)
             # print("             iteration " + str(iteration))
             iteration += 1
-            if iteration > 50:
+            if iteration > 1000:
                 print("more MCTS search iterations than the maximum, breaking out of possibly infinite loop!")
                 return
 
@@ -100,7 +100,7 @@ class MCTS():
 
             if s not in self.Ps:
                 # leaf node
-                self.Ps[s], v = self.nnet.predict(canonicalBoard)
+                self.Ps[s], v = self.nnet.predict(canonicalBoard, np.array([next_player]))
                 valids = self.game.getValidMoves(canonicalBoard, next_player)
                 self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
                 sum_Ps_s = np.sum(self.Ps[s])
@@ -112,6 +112,7 @@ class MCTS():
                     # NB! All valid moves may be masked if either your NNet architecture is insufficient or you've get overfitting or something else.
                     # If you have got dozens or hundreds of these messages you should pay attention to your NNet and/or training process.
                     print("All valid moves were masked, do workaround.")
+                    print(valids)
                     self.Ps[s] = self.Ps[s] + valids
                     self.Ps[s] /= np.sum(self.Ps[s])
 

@@ -274,12 +274,14 @@ class TaflBoard:
             if board_bytes in self.board_states_dict:
                 self.board_states_dict[board_bytes] += 1
                 if self.board_states_dict[board_bytes] == 3:
-                    if player== Player.white:
+                    if player == Player.white:
                         self.outcome=Outcome.black
-                        print("White forced the same board state for third time. Black wins!")
-                    else :
+                        if self.print_to_console:
+                            print("White forced the same board state for third time. Black wins!")
+                    else:
                         self.outcome=Outcome.white
-                        print("Black forced the same board state for third time. White wins!")
+                        if self.print_to_console:
+                            print("Black forced the same board state for third time. White wins!")
                     #self.outcome = Outcome.draw
                     #if self.print_to_console:
                      #   print("The same board state has occurred three times. The game ends in a draw!")

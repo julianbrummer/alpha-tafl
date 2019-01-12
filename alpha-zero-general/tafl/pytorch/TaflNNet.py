@@ -12,6 +12,7 @@ from torch.autograd import Variable
 
 class TaflNNet(nn.Module):
     def __init__(self, game, args):
+
         # game params
         self.board_x, self.board_y = game.getBoardSize()
         self.action_size = game.getActionSize()
@@ -28,7 +29,7 @@ class TaflNNet(nn.Module):
         self.bn3 = nn.BatchNorm2d(args.num_channels)
         self.bn4 = nn.BatchNorm2d(args.num_channels)
 
-        self.fc1 = nn.Linear(args.num_channels*(self.board_x-4)*(self.board_y-4), 1024)
+        self.fc1 = nn.Linear(args.num_channels*(self.board_x-4)*(self.board_y-4) + args.num_scalar_values, 1024)
         self.fc_bn1 = nn.BatchNorm1d(1024)
 
         self.fc2 = nn.Linear(1024, 512)
@@ -38,7 +39,7 @@ class TaflNNet(nn.Module):
 
         self.fc4 = nn.Linear(512, 1)
 
-    def forward(self, s):
+    def forward(self, s, scalar_values):
                                                                      # s: batch_size x board_x x board_y
         s = s.view(-1, 1, self.board_x, self.board_y)                # batch_size x 1 x board_x x board_y
         s = F.relu(self.bn1(self.conv1(s)))                          # batch_size x num_channels x board_x x board_y
@@ -47,10 +48,14 @@ class TaflNNet(nn.Module):
         s = F.relu(self.bn4(self.conv4(s)))                          # batch_size x num_channels x (board_x-4) x (board_y-4)
         s = s.view(-1, self.args.num_channels*(self.board_x-4)*(self.board_y-4))
 
-        s = F.dropout(F.relu(self.fc_bn1(self.fc1(s))), p=self.args.dropout, training=self.training)  # batch_size x 1024
-        s = F.dropout(F.relu(self.fc_bn2(self.fc2(s))), p=self.args.dropout, training=self.training)  # batch_size x 512
+        # print(s.shape)
+        # print(scalar_values.shape)
+        combined = torch.cat((s, scalar_values), dim=1)
 
-        pi = self.fc3(s)                                                                         # batch_size x action_size
-        v = self.fc4(s)                                                                          # batch_size x 1
+        combined = F.dropout(F.relu(self.fc_bn1(self.fc1(combined))), p=self.args.dropout, training=self.training)  # batch_size x 1024
+        combined = F.dropout(F.relu(self.fc_bn2(self.fc2(combined))), p=self.args.dropout, training=self.training)  # batch_size x 512
+
+        pi = self.fc3(combined)                                                                         # batch_size x action_size
+        v = self.fc4(combined)                                                                          # batch_size x 1
 
         return F.log_softmax(pi, dim=1), F.tanh(v)
