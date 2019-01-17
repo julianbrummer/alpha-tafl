@@ -11,9 +11,10 @@ class MCTS():
     This class handles the MCTS tree.
     """
 
-    def __init__(self, game, nnet, args):
+    def __init__(self, game, white_nnet, black_nnet, args):
         self.game = game
-        self.nnet = nnet
+        self.white_nnet = white_nnet
+        self.black_nnet = black_nnet
         self.args = args
         self.Qsa = {}       # stores Q values for s,a (as defined in the paper)
         self.Nsa = {}       # stores #times edge s,a was visited
@@ -72,6 +73,9 @@ class MCTS():
             v: the negative of the value of the current canonicalBoard
         """
 
+        def player_net(player):
+            return self.white_nnet if player == Player.white else self.black_nnet
+
         value_stack = []
         next_player = this_player
         iteration = 0
@@ -100,7 +104,7 @@ class MCTS():
 
             if s not in self.Ps:
                 # leaf node
-                self.Ps[s], v = self.nnet.predict(canonicalBoard, np.array([next_player]))
+                self.Ps[s], v = player_net(next_player).predict(canonicalBoard, np.array([next_player]))
                 valids = self.game.getValidMoves(canonicalBoard, next_player)
                 self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
                 sum_Ps_s = np.sum(self.Ps[s])

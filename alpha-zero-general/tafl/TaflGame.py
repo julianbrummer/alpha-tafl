@@ -50,7 +50,7 @@ class TaflGame(Game):
         """
         # size*size to select the piece to move
         # size for horizontal movement, size for vertical movement, so size*2 to select the action to take
-        return self.size*self.size*self.size*2
+        return self.size*self.size*self.size*2+1
 
     def getNextState(self, board, player, action):
         """
@@ -64,13 +64,15 @@ class TaflGame(Game):
             nextPlayer: player who plays in the next turn (should be -player)
         """
 
-        action = self.action_conversion__index_to_explicit(action)
-
-        board = copy.deepcopy(board)
-        if action != ((1, 1), (1, 2)):
-            board.do_action(action, player)
+        if action == self.getActionSize() - 1:
+            if board.outcome != Outcome.ongoing:
+                raise Exception(str(player) + " selected 'no action', but had still moves left\n" + str(board) + "\n"
+                                + str(list(board.get_valid_actions(player))))
         else:
-            assert board.outcome != Outcome.ongoing
+            explicit = self.action_conversion__index_to_explicit(action)
+            assert self.action_conversion__explicit_to_index(explicit) == action
+            board = copy.deepcopy(board)
+            board.do_action(explicit, player)
         next_player = -1 if player == 1 else 1
         return board, next_player
 
@@ -93,7 +95,7 @@ class TaflGame(Game):
                         moves that are valid from the current board and player,
                         0 for invalid moves
         """
-        array = np.zeros((self.size, self.size, self.size, 2))  # see comment in getActionSize()
+        array = np.zeros(self.getActionSize())  # see comment in getActionSize()
                                             # use 0 for horizontal movement indexing, 1 for vertical movement indexing
         no_immediate_loss_possible = False
         move_set = board.get_valid_actions(player)
@@ -101,7 +103,8 @@ class TaflGame(Game):
             board.do_action(explicit, player)
             if (player == Player.white and board.outcome != Outcome.black) \
                     or (player == Player.black and board.outcome != Outcome.white):
-                index = self.action_conversion__explicit_to_indices(explicit)
+                index = self.action_conversion__explicit_to_index(explicit)
+                assert self.action_conversion__index_to_explicit(index) == explicit
                 array[index] = 1
                 no_immediate_loss_possible = True
             board.undo_last_action()
@@ -114,18 +117,20 @@ class TaflGame(Game):
             # class already, but the network is still asked to select a move. Therefore we need to give the program at
             # least one move to choose from.
             if len(move_set) == 0:
-                index = self.action_conversion__explicit_to_indices(((1, 1), (1, 2)))
+                index = len(array) - 1
             else:
-                index = self.action_conversion__explicit_to_indices(random.choice(move_set))
+                index = self.action_conversion__explicit_to_index(random.choice(move_set))
             array[index] = 1
 
-        return array.ravel()
+        return array
 
-    def action_conversion__explicit_to_indices(self, explicit):
+    def action_conversion__explicit_to_index(self, explicit):
         (x_from, y_from), (x_to, y_to) = explicit
         movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
         to = x_to if movement_type == MovementType.horizontal else y_to
-        return x_from - 1, y_from - 1, to - 1, movement_type   # all coordinates -1 because of the border
+        result = (((x_from - 1) * self.size + y_from - 1) * self.size + to - 1) * 2 + movement_type   # all coordinates -1 because of the border
+        assert 0 <= result < self.size*self.size*self.size * 2
+        return result
 
     def getGameEnded(self, board, player):
         """

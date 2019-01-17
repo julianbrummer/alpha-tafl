@@ -5,17 +5,18 @@ from utils import dotdict
 
 args = dotdict({
     'numIters': 1000,
-    'numEps': 50,
+    'numEps': 10,
     'tempThreshold': 15,
     'updateThreshold': 0.55,
     'maxlenOfQueue': 200000,
-    'numMCTSSims': 40,
+    'numMCTSSims': 25,
     'arenaCompare': 40,
     'cpuct': 1,
 
     'checkpoint': './temp/',
     'load_model': False,
-    'load_folder_file': ('/dev/models/8x100x50','best.pth.tar'),
+    'load_folder_file_white': ('/dev/models/8x100x50','best_white.pth.tar'),
+    'load_folder_file_black': ('/dev/models/8x100x50','best_black.pth.tar'),
     'numItersForTrainExamplesHistory': 20,
 
 })
@@ -23,12 +24,15 @@ args = dotdict({
 if __name__=="__main__":
     #  g = OthelloGame(6)
     g = TaflGame(7)
-    nnet = nn(g)
+    white_nnet = nn(g)
+    black_nnet = nn(g)
 
+    # TODO: the load folder file might need to be adjusted to work with two networks. That part is still from when we had only one network
     if args.load_model:
-        nnet.load_checkpoint(args.load_folder_file[0], args.load_folder_file[1])
+        white_nnet.load_checkpoint(args.load_folder_file_white[0], args.load_folder_file_white[1])
+        black_nnet.load_checkpoint(args.load_folder_file_black[0], args.load_folder_file_black[1])
 
-    c = Coach(g, nnet, args)
+    c = Coach(g, white_nnet, black_nnet, args)
     if args.load_model:
         print("Load trainExamples from file")
         c.loadTrainExamples()

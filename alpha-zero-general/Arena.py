@@ -47,9 +47,11 @@ class Arena():
 
             valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
 
-            if valids[action]==0:
-                print(action)
-                assert valids[action] >0
+            if valids[action] == 0:
+                print("\n" + str(self.game.action_conversion__index_to_explicit(action)) + ", spieler am zug: " + str(curPlayer))
+                print(board)
+                print(str(self.game.getValidMoves(board, curPlayer)))
+                assert valids[action] > 0
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
         if verbose:
             assert(self.display)
