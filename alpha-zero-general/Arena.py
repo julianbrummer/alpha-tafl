@@ -48,10 +48,11 @@ class Arena():
             valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
 
             if valids[action] == 0:
-                print("\n" + str(self.game.action_conversion__index_to_explicit(action)) + ", spieler am zug: " + str(curPlayer))
-                print(board)
-                print(str(self.game.getValidMoves(board, curPlayer)))
-                assert valids[action] > 0
+                print("\nArena bug occured:\naction: " + str(self.game.action_conversion__index_to_explicit(action)) + ", turn player: " + str(curPlayer))
+                print("board:" + str(board))
+                print("valid moves for turn player: " + str(self.game.getValidMoves(board, curPlayer)))
+                # assert valids[action] > 0
+                return None
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
         if verbose:
             assert(self.display)
@@ -80,7 +81,9 @@ class Arena():
         twoWon = 0
         draws = 0
         for _ in range(num):
-            gameResult = self.playGame(verbose=verbose)
+            gameResult = None
+            while gameResult == None:
+               gameResult = self.playGame(verbose=verbose)
             if gameResult==1:
                 oneWon+=1
             elif gameResult==-1:
