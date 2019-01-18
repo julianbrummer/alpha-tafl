@@ -5,7 +5,7 @@ from utils import dotdict
 
 args = dotdict({
     'numIters': 1000,
-    'numEps': 10,
+    'numEps': 50,
     'tempThreshold': 15,
     'updateThreshold': 0.55,
     'maxlenOfQueue': 200000,
@@ -15,10 +15,13 @@ args = dotdict({
 
     'checkpoint': './temp/',
     'load_model': False,
+
     'load_folder_file_white': ('/dev/models/8x100x50','best_white.pth.tar'),
     'load_folder_file_black': ('/dev/models/8x100x50','best_black.pth.tar'),
     'numItersForTrainExamplesHistory': 20,
 
+    'train_other_network_threshold': 1      # compared with (network that is currently trained wins)/(other network wins)
+                                            # toggles the network being trained when threshold is reached
 })
 
 if __name__=="__main__":

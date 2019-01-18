@@ -2,6 +2,9 @@ import numpy as np
 from pytorch_classification.utils import Bar, AverageMeter
 import time
 
+from tafl.TaflBoard import Player
+
+
 class Arena():
     """
     An Arena class where any 2 agents can be pit against each other.
@@ -48,8 +51,9 @@ class Arena():
             valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
 
             if valids[action] == 0:
-                print("\nArena bug occured:\naction: " + str(self.game.action_conversion__index_to_explicit(action)) + ", turn player: " + str(curPlayer))
-                print("board:" + str(board))
+                print("\nArena bug occured:\naction: " + str(self.game.action_conversion__index_to_explicit(action))
+                      + ", turn player: " + str(Player(curPlayer)))
+                print("board:\n" + str(board))
                 print("valid moves for turn player: " + str(self.game.getValidMoves(board, curPlayer)))
                 # assert valids[action] > 0
                 return None
@@ -80,14 +84,20 @@ class Arena():
         oneWon = 0
         twoWon = 0
         draws = 0
+        oneWhiteWon = 0     # number of times the first player won as white
+        oneBlackWon = 0     # number of times the first player won as black
+        twoWhiteWon = 0     # number of times the second player won as white
+        twoBlackWon = 0     # number of times the second player won as black
         for _ in range(num):
             gameResult = None
-            while gameResult == None:
+            while gameResult is None:
                gameResult = self.playGame(verbose=verbose)
             if gameResult==1:
                 oneWon+=1
+                oneBlackWon+=1
             elif gameResult==-1:
                 twoWon+=1
+                twoWhiteWon+=1
             else:
                 draws+=1
             # bookkeeping + plot progress
@@ -101,21 +111,25 @@ class Arena():
         self.player1, self.player2 = self.player2, self.player1
         
         for _ in range(num):
-            gameResult = self.playGame(verbose=verbose)
+            gameResult = None
+            while gameResult is None:
+                gameResult = self.playGame(verbose=verbose)
             if gameResult==-1:
-                oneWon+=1                
+                oneWon+=1
+                oneWhiteWon+=1
             elif gameResult==1:
                 twoWon+=1
+                twoBlackWon+=1
             else:
                 draws+=1
             # bookkeeping + plot progress
             eps += 1
             eps_time.update(time.time() - end)
             end = time.time()
-            bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps+1, maxeps=num, et=eps_time.avg,
+            bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps+1, maxeps=maxeps, et=eps_time.avg,
                                                                                                        total=bar.elapsed_td, eta=bar.eta_td)
             bar.next()
             
         bar.finish()
 
-        return oneWon, twoWon, draws
+        return oneWon, twoWon, draws, oneWhiteWon, oneBlackWon, twoWhiteWon, twoBlackWon

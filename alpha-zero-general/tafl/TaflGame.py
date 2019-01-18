@@ -65,9 +65,9 @@ class TaflGame(Game):
         """
 
         if action == self.getActionSize() - 1:
-            if board.outcome != Outcome.ongoing:
-                raise Exception(str(player) + " selected 'no action', but had still moves left\n" + str(board) + "\n"
-                                + str(list(board.get_valid_actions(player))))
+            board.outcome = Outcome.black if player == Player.white else Player.black
+            # assert board.outcome != Outcome.ongoing, str(player) + " selected 'no action', but had still moves left\n" \
+            #                                          + str(board) + "\n" + str(list(board.get_valid_actions(player)))
         else:
             explicit = self.action_conversion__index_to_explicit(action)
             assert self.action_conversion__explicit_to_index(explicit) == action
