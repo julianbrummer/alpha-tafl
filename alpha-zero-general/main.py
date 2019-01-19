@@ -2,14 +2,15 @@ from tafl.pytorch.NNet import NNetWrapper as nn
 from Coach import Coach
 from tafl.TaflGame import TaflGame
 from utils import dotdict
+from trainingData import TrainingData
 
 args = dotdict({
     'numIters': 1000,
-    'numEps': 10,
+    'numEps': 50,
     'tempThreshold': 15,
     'updateThreshold': 0.55,
     'maxlenOfQueue': 200000,
-    'numMCTSSims': 25,
+    'numMCTSSims': 40,
     'arenaCompare': 40,
     'cpuct': 1,
 
@@ -21,6 +22,11 @@ args = dotdict({
 
 })
 
+TrainingData.translateData(TrainingData.readData())
+#if __name__=="__main__":
+    #g = OthelloGame(6)
+ #   g = TaflGame(7)
+  #  nnet = nn(g)
 if __name__=="__main__":
     #  g = OthelloGame(6)
     g = TaflGame(7)
