@@ -1,3 +1,4 @@
+import cProfile
 from collections import deque
 from Arena import Arena
 from MCTS import MCTS
@@ -83,6 +84,8 @@ class Coach():
         only if it wins >= updateThreshold fraction of games.
         """
 
+        train_black = True
+
         for i in range(1, self.args.numIters+1):
             # bookkeeping
             print('------ITER ' + str(i) + '------')
@@ -93,7 +96,11 @@ class Coach():
                 eps_time = AverageMeter()
                 bar = Bar('Self Play', max=self.args.numEps)
                 end = time.time()
-    
+
+                if self.args.profile_coach:
+                    prof = cProfile.Profile()
+                    prof.enable()
+
                 for eps in range(self.args.numEps):
                     self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)   # reset search tree
                     iterationTrainExamples += self.executeEpisode()
@@ -105,6 +112,9 @@ class Coach():
                                                                                                                total=bar.elapsed_td, eta=bar.eta_td)
                     bar.next()
                 bar.finish()
+                if self.args.profile_coach:
+                    prof.disable()
+                    prof.print_stats(sort=2)
 
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
@@ -130,9 +140,6 @@ class Coach():
 
             pmcts = MCTS(self.game, self.white_pnet, self.black_pnet, self.args)
 
-            # TODO: vary depending on victory ratio
-            train_black = True
-
             if train_black:
                 self.black_nnet.train(trainExamples)
             else:
@@ -142,10 +149,19 @@ class Coach():
             print('PITTING AGAINST PREVIOUS VERSION')
             arena = Arena(lambda x, player: np.argmax(pmcts.getActionProb(x, player, temp=0)),
                           lambda x, player: np.argmax(nmcts.getActionProb(x, player, temp=0)), self.game)
-            pwins, nwins, draws = arena.playGames(self.args.arenaCompare)
+            pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black \
+                = arena.playGames(self.args.arenaCompare, self.args.profile_arena)
 
-            print('NEW/PREV WINS : %d / %d ; DRAWS : %d' % (nwins, pwins, draws))
-            if pwins+nwins > 0 and float(nwins)/(pwins+nwins) < self.args.updateThreshold:
+            print('NEW/PREV WINS (white, black) : (%d,%d) / (%d,%d) ; DRAWS : %d' % (nwins_white, nwins_black, pwins_white, pwins_black, draws))
+
+            if train_black:
+                pwins_color = pwins_black
+                nwins_color = nwins_black
+            else:
+                pwins_color = pwins_white
+                nwins_color = nwins_white
+
+            if pwins_color+nwins_color > 0 and float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold:
                 print('REJECTING NEW MODEL')
                 if train_black:
                     self.black_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_black.pth.tar')
@@ -156,9 +172,13 @@ class Coach():
                 if train_black:
                     self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
                     self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best.pth.tar')
+                    if nwins_black / nwins_white > 0.8:
+                        train_black = False
                 else:
                     self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
                     self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best.pth.tar')
+                    if nwins_white / nwins_black > 0.8:
+                        train_black = True
 
     def getCheckpointFile(self, iteration, player=None):
         return 'checkpoint_' + ('white_' if player == Player.white else 'black_' if player == Player.black else '') + str(iteration) + '.pth.tar'

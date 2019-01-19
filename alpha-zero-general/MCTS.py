@@ -1,3 +1,4 @@
+import copy
 import math
 import numpy as np
 
@@ -35,7 +36,7 @@ class MCTS():
         """
         for i in range(self.args.numMCTSSims):
             # print("    search number " + str(i))
-            self.search(canonicalBoard, this_player)
+            self.search(copy.deepcopy(canonicalBoard), this_player)
 
         s = self.game.stringRepresentation(canonicalBoard) + str(this_player)   # this addition is needed so that
         # the search algorithm doesn't get confused when the same board state as before is reached, but it's the
