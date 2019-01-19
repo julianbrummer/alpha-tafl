@@ -1,3 +1,4 @@
+import cProfile
 from collections import deque
 from Arena import Arena
 from MCTS import MCTS
@@ -95,7 +96,11 @@ class Coach():
                 eps_time = AverageMeter()
                 bar = Bar('Self Play', max=self.args.numEps)
                 end = time.time()
-    
+
+                if self.args.profile_coach:
+                    prof = cProfile.Profile()
+                    prof.enable()
+
                 for eps in range(self.args.numEps):
                     self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)   # reset search tree
                     iterationTrainExamples += self.executeEpisode()
@@ -107,6 +112,9 @@ class Coach():
                                                                                                                total=bar.elapsed_td, eta=bar.eta_td)
                     bar.next()
                 bar.finish()
+                if self.args.profile_coach:
+                    prof.disable()
+                    prof.print_stats(sort=2)
 
                 # save the iteration examples to the history 
                 self.trainExamplesHistory.append(iterationTrainExamples)
@@ -141,7 +149,8 @@ class Coach():
             print('PITTING AGAINST PREVIOUS VERSION')
             arena = Arena(lambda x, player: np.argmax(pmcts.getActionProb(x, player, temp=0)),
                           lambda x, player: np.argmax(nmcts.getActionProb(x, player, temp=0)), self.game)
-            pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black = arena.playGames(self.args.arenaCompare)
+            pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black \
+                = arena.playGames(self.args.arenaCompare, self.args.profile_arena)
 
             print('NEW/PREV WINS (white, black) : (%d,%d) / (%d,%d) ; DRAWS : %d' % (nwins_white, nwins_black, pwins_white, pwins_black, draws))
 

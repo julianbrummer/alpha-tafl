@@ -1,3 +1,5 @@
+import cProfile
+
 import numpy as np
 from pytorch_classification.utils import Bar, AverageMeter
 import time
@@ -64,7 +66,7 @@ class Arena():
             self.display(board)
         return self.game.getGameEnded(board, 1)
 
-    def playGames(self, num, verbose=False):
+    def playGames(self, num, profile, verbose=False):
         """
         Plays num games in which player1 starts num/2 games and player2 starts
         num/2 games.
@@ -88,10 +90,13 @@ class Arena():
         oneBlackWon = 0     # number of times the first player won as black
         twoWhiteWon = 0     # number of times the second player won as white
         twoBlackWon = 0     # number of times the second player won as black
+        if profile:
+            prof = cProfile.Profile()
+            prof.enable()
         for _ in range(num):
             gameResult = None
             while gameResult is None:
-               gameResult = self.playGame(verbose=verbose)
+                gameResult = self.playGame(verbose=verbose)
             if gameResult==1:
                 oneWon+=1
                 oneBlackWon+=1
@@ -131,5 +136,8 @@ class Arena():
             bar.next()
             
         bar.finish()
+        if profile:
+            prof.disable()
+            prof.print_stats(sort=2)
 
         return oneWon, twoWon, draws, oneWhiteWon, oneBlackWon, twoWhiteWon, twoBlackWon
