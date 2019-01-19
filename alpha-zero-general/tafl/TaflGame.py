@@ -52,7 +52,7 @@ class TaflGame(Game):
         # size for horizontal movement, size for vertical movement, so size*2 to select the action to take
         return self.size*self.size*self.size*2+1
 
-    def getNextState(self, board, player, action):
+    def getNextState(self, board, player, action, copy_board=False):
         """
         Input:
             board: current board
@@ -71,7 +71,8 @@ class TaflGame(Game):
         else:
             explicit = self.action_conversion__index_to_explicit(action)
             assert self.action_conversion__explicit_to_index(explicit) == action
-            board = copy.deepcopy(board)
+            if copy_board:
+                board = copy.deepcopy(board)
             board.do_action(explicit, player)
         next_player = -1 if player == 1 else 1
         return board, next_player
@@ -152,7 +153,7 @@ class TaflGame(Game):
         else:
             return -1 if player == Player.black else 1
 
-    def getCanonicalForm(self, board, player):
+    def getCanonicalForm(self, board, player, copy_board=False):
         """
         Input:
             board: current board
@@ -167,7 +168,9 @@ class TaflGame(Game):
                             the colors and return the board.
         """
         # canonical form isn't really possible because of the asymmetric nature of tafl
-        return copy.deepcopy(board)
+        if copy_board:
+            board = copy.deepcopy(board)
+        return board
 
     def getSymmetries(self, board, pi):
         """
