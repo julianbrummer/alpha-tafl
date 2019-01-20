@@ -4,8 +4,6 @@ import numpy as np
 from pytorch_classification.utils import Bar, AverageMeter
 import time
 
-from tafl.TaflBoard import Player
-
 
 class Arena():
     """

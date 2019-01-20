@@ -442,3 +442,7 @@ class TaflBoard:
 
     def __str__(self):
         return np.array_str(self.board) + str(self.board_states_dict[self.board.tobytes()])
+
+    # bytes are much faster than strings, so use this method if you can
+    def bytes(self):
+        return self.board.tostring() + self.board_states_dict[self.board.tobytes()].to_bytes(1, byteorder='big')

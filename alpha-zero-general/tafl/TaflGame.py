@@ -284,4 +284,5 @@ class TaflGame(Game):
             boardString: a quick conversion of board to a string format.
                          Required by MCTS for hashing.
         """
-        return str(board)
+        return board.bytes()
+        # return str(board)

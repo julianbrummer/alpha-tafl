@@ -23,8 +23,8 @@ args = dotdict({
     'train_other_network_threshold': 1,    # compared with (network that is currently trained wins)/(other network wins)
                                            # toggles the network being trained when threshold is reached
 
-    'profile_coach': False,
-    'profile_arena': True,
+    'profile_coach': True,
+    'profile_arena': False,
 })
 
 if __name__=="__main__":
