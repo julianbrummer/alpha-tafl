@@ -1,5 +1,7 @@
 import copy
 import math
+import random
+
 import numpy as np
 
 from tafl.TaflBoard import Player
@@ -44,7 +46,9 @@ class MCTS():
         counts = [self.Nsa[(s,a)] if (s,a) in self.Nsa else 0 for a in range(self.game.getActionSize())]
 
         if temp == 0:
-            bestA = np.argmax(counts)
+            maximum = max(counts)
+            argmaxs = [(index, count) for index, count in enumerate(counts) if count == maximum]
+            bestA, count = random.choice(argmaxs)
             probs = [0]*len(counts)
             probs[bestA]=1
             return probs

@@ -24,7 +24,7 @@ args = dotdict({
                                            # toggles the network being trained when threshold is reached
 
     'profile_coach': False,
-    'profile_arena': False,
+    'profile_arena': True,
 })
 
 if __name__=="__main__":
