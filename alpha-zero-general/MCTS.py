@@ -1,5 +1,7 @@
 import copy
 import math
+import random
+
 import numpy as np
 
 from tafl.TaflBoard import Player
@@ -38,13 +40,17 @@ class MCTS():
             # print("    search number " + str(i))
             self.search(copy.deepcopy(canonicalBoard), this_player)
 
-        s = self.game.stringRepresentation(canonicalBoard) + str(this_player)   # this addition is needed so that
+        # bytes are much faster
+        s = self.game.stringRepresentation(canonicalBoard) + this_player.to_bytes(1, byteorder='big', signed=True)
+        # s = self.game.stringRepresentation(canonicalBoard) + str(this_player)   # this addition is needed so that
         # the search algorithm doesn't get confused when the same board state as before is reached, but it's the
         # other player's turn
         counts = [self.Nsa[(s,a)] if (s,a) in self.Nsa else 0 for a in range(self.game.getActionSize())]
 
         if temp == 0:
-            bestA = np.argmax(counts)
+            maximum = max(counts)
+            argmaxs = [(index, count) for index, count in enumerate(counts) if count == maximum]
+            bestA, count = random.choice(argmaxs)
             probs = [0]*len(counts)
             probs[bestA]=1
             return probs
@@ -92,7 +98,9 @@ class MCTS():
 
             # workaround end
 
-            s = self.game.stringRepresentation(canonicalBoard) + str(next_player)   # this addition is needed so that
+            # bytes are much faster
+            s = self.game.stringRepresentation(canonicalBoard) + next_player.to_bytes(1, byteorder='big', signed=True)
+            # s = self.game.stringRepresentation(canonicalBoard) + str(next_player)   # this addition is needed so that
             # the search algorithm doesn't get confused when the same board state as before is reached, but it's the
             # other player's turn
 

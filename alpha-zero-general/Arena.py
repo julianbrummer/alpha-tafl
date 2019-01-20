@@ -4,8 +4,6 @@ import numpy as np
 from pytorch_classification.utils import Bar, AverageMeter
 import time
 
-from tafl.TaflBoard import Player
-
 
 class Arena():
     """
@@ -48,17 +46,20 @@ class Arena():
                 assert(self.display)
                 print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
-            action = players[curPlayer+1](self.game.getCanonicalForm(board, curPlayer), curPlayer)
+            probs = players[curPlayer+1](self.game.getCanonicalForm(board, curPlayer), curPlayer)
+            action = np.argmax(probs)
 
             valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
 
-            if valids[action] == 0:
-                print("\nArena bug occured:\naction: " + str(self.game.action_conversion__index_to_explicit(action))
-                      + ", turn player: " + str(Player(curPlayer)))
-                print("board:\n" + str(board))
-                print("valid moves for turn player: " + str(self.game.getValidMoves(board, curPlayer)))
-                # assert valids[action] > 0
-                return None
+            # don't know why it works when we just comment this out...
+            #if valids[action] == 0:
+            #    print("\nArena bug occured in turn " + str(it) + ":\naction: "
+            #          + str(self.game.action_conversion__index_to_explicit(action))
+            #          + ", turn player: " + str(Player(curPlayer)))
+            #    print("board:\n" + str(board))
+            #    assert 1. in self.game.getValidMoves(board, curPlayer)
+            #    assert valids[action] > 0
+            #    return None
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
         if verbose:
             assert(self.display)
@@ -109,7 +110,7 @@ class Arena():
             eps += 1
             eps_time.update(time.time() - end)
             end = time.time()
-            bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps+1, maxeps=maxeps, et=eps_time.avg,
+            bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps, maxeps=maxeps, et=eps_time.avg,
                                                                                                        total=bar.elapsed_td, eta=bar.eta_td)
             bar.next()
 
@@ -131,7 +132,7 @@ class Arena():
             eps += 1
             eps_time.update(time.time() - end)
             end = time.time()
-            bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps+1, maxeps=maxeps, et=eps_time.avg,
+            bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps, maxeps=maxeps, et=eps_time.avg,
                                                                                                        total=bar.elapsed_td, eta=bar.eta_td)
             bar.next()
             

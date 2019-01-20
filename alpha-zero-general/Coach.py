@@ -71,8 +71,8 @@ class Coach():
             r = self.game.getGameEnded(board, self.curPlayer)
 
             if r!=0:
-                if board.outcome == Outcome.black:
-                    print(" black wins")
+                # if board.outcome == Outcome.black:
+                #     print(" black wins")
                 return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), (x[1],)) for x in trainExamples]
 
     def learn(self):
@@ -147,8 +147,10 @@ class Coach():
             nmcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)
 
             print('PITTING AGAINST PREVIOUS VERSION')
-            arena = Arena(lambda x, player: np.argmax(pmcts.getActionProb(x, player, temp=0)),
-                          lambda x, player: np.argmax(nmcts.getActionProb(x, player, temp=0)), self.game)
+            # originally:                           v<---np.argmax(..................................)
+            arena = Arena(lambda board, turn_player: (pmcts.getActionProb(board, turn_player, temp=0)),
+                          lambda board, turn_player: (nmcts.getActionProb(board, turn_player, temp=0)),
+                          self.game)
             pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black \
                 = arena.playGames(self.args.arenaCompare, self.args.profile_arena)
 

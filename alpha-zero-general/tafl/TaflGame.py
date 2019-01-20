@@ -101,14 +101,11 @@ class TaflGame(Game):
         no_immediate_loss_possible = False
         move_set = board.get_valid_actions(player)
         for explicit in move_set:
-            board.do_action(explicit, player)
-            if (player == Player.white and board.outcome != Outcome.black) \
-                    or (player == Player.black and board.outcome != Outcome.white):
+            if not board.would_next_board_be_third(explicit):
                 index = self.action_conversion__explicit_to_index(explicit)
                 assert self.action_conversion__index_to_explicit(index) == explicit
                 array[index] = 1
                 no_immediate_loss_possible = True
-            board.undo_last_action()
 
         # if all possible moves lead to a loss...
         if not no_immediate_loss_possible:
@@ -183,50 +180,98 @@ class TaflGame(Game):
                        form of the board and the corresponding pi vector. This
                        is used when training the neural network from examples.
         """
-        # TODO implement
-        actions_and_probs=[(index,prob)for index,prob in enumerate(pi) if prob !=0]
+        actions_and_probs = [(index, prob)for index, prob in enumerate(pi) if prob != 0]
 
-
-        symmetries=[]
+        symmetries = []
 
         #original
-        symmetries.append((board.board[1:self.size+1, 1:self.size+1], pi))
+        temp_board = np.copy(board.board[1:self.size + 1, 1:self.size + 1])
+        symmetries.append((temp_board, pi))
 
-        if False:
-            # vertical flip
-            temp_board=np.copy(board.board[1:self.size+1, 1:self.size+1])
-            np.flip(temp_board,0)
-            temp_pi=np.zeros((self.size,self.size,self.size,2))
-            for index, prob in actions_and_probs:
-                ((x_from,y_from),(x_to,y_to))=self.action_conversion__index_to_explicit(index)
-                explicit=(self.size+1 - x_from, y_from),(self.size + 1- x_to, y_to)
-                temp_pi[self.action_conversion__explicit_to_indices(explicit)]=prob
-            temp_pi.ravel()
-            symmetries.append((temp_board,temp_pi))
+        # horizontal flip
+        temp_board = np.flip(temp_board, 0)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
+                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                explicit = (self.size + 1 - x_from, y_from), (self.size + 1 - x_to, y_to)
+                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
+        symmetries.append((temp_board, temp_pi))
 
-            # horizontal and vertical flip
-
-            np.flip(temp_board, 1)
-            temp_pi = np.zeros((self.size, self.size, self.size, 2))
-            for index, prob in actions_and_probs:
+        # horizontal and vertical flip
+        temp_board = np.flip(temp_board, 1)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (self.size + 1 - x_from, self.size + 1 - y_from), (self.size + 1 - x_to, self.size + 1 - y_to)
-                temp_pi[self.action_conversion__explicit_to_indices(explicit)]=prob
-            temp_pi.ravel()
-            symmetries.append((temp_board, temp_pi))
+                temp_pi[self.action_conversion__explicit_to_index(explicit)]=prob
+        symmetries.append((temp_board, temp_pi))
 
-            # horizontal flip
-
-            np.flip(temp_board, 0)
-            temp_pi = np.zeros((self.size, self.size, self.size, 2))
-            for index, prob in actions_and_probs:
+        # vertical flip
+        temp_board = np.flip(temp_board, 0)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (x_from, self.size + 1 - y_from), (x_to, self.size + 1 - y_to)
-                temp_pi[self.action_conversion__explicit_to_indices(explicit)]=prob
-            temp_pi.ravel()
-            symmetries.append((temp_board, temp_pi))
+                temp_pi[self.action_conversion__explicit_to_index(explicit)]=prob
+        symmetries.append((temp_board, temp_pi))
 
+        # rotation
+        temp_board = np.flip(temp_board, 1)
+        temp_board = np.rot90(temp_board)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
+                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                explicit = (self.size + 1 - y_from, x_from), (self.size + 1 - y_to, x_to)
+                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
+        symmetries.append((temp_board, temp_pi))
 
+        # rotation and horizontal flip
+        temp_board = np.flip(temp_board, 0)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
+                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                explicit = (y_from, x_from), (y_to, x_to)
+                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
+        symmetries.append((temp_board, temp_pi))
+
+        # rotation and horizontal and vertical flip
+        temp_board = np.flip(temp_board, 1)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
+                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                explicit = (y_from, self.size + 1 - x_from), (y_to, self.size + 1 - x_to)
+                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
+        symmetries.append((temp_board, temp_pi))
+
+        # rotation and vertical flip
+        temp_board = np.flip(temp_board, 0)
+        temp_pi = np.zeros(self.size * self.size * self.size * 2 + 1)
+        for index, prob in actions_and_probs:
+            if index == self.size * self.size * self.size * 2:
+                temp_pi[index] = prob
+            else:
+                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                explicit = (self.size + 1 - y_from, self.size + 1 - x_from), (self.size + 1 - y_to, self.size + 1 - x_to)
+                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
+        symmetries.append((temp_board, temp_pi))
 
         return symmetries
 
@@ -239,4 +284,5 @@ class TaflGame(Game):
             boardString: a quick conversion of board to a string format.
                          Required by MCTS for hashing.
         """
-        return str(board)
+        return board.bytes()
+        # return str(board)

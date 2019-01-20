@@ -6,7 +6,7 @@ from trainingData import TrainingData
 
 args = dotdict({
     'numIters': 1000,
-    'numEps': 10,
+    'numEps': 5,
     'tempThreshold': 15,
     'updateThreshold': 0.55,
     'maxlenOfQueue': 200000,
@@ -25,7 +25,7 @@ args = dotdict({
                                            # toggles the network being trained when threshold is reached
 
     'profile_coach': True,
-    'profile_arena': True,
+    'profile_arena': False,
 })
 
 if __name__=="__main__":
