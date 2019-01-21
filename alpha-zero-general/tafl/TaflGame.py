@@ -169,7 +169,7 @@ class TaflGame(Game):
             board = copy.deepcopy(board)
         return board
 
-    def getSymmetries(self, board, pi):
+    def getSymmetries(self, board, pi, king_position):
         """
         Input:
             board: current board
@@ -181,12 +181,13 @@ class TaflGame(Game):
                        is used when training the neural network from examples.
         """
         actions_and_probs = [(index, prob)for index, prob in enumerate(pi) if prob != 0]
+        king_x, king_y = king_position
 
         symmetries = []
 
         #original
         temp_board = np.copy(board.board[1:self.size + 1, 1:self.size + 1])
-        symmetries.append((temp_board, pi))
+        symmetries.append((temp_board, pi, (king_x, king_y)))
 
         # horizontal flip
         temp_board = np.flip(temp_board, 0)
@@ -198,7 +199,7 @@ class TaflGame(Game):
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (self.size + 1 - x_from, y_from), (self.size + 1 - x_to, y_to)
                 temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi))
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_x, king_y)))
 
         # horizontal and vertical flip
         temp_board = np.flip(temp_board, 1)
@@ -210,7 +211,7 @@ class TaflGame(Game):
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (self.size + 1 - x_from, self.size + 1 - y_from), (self.size + 1 - x_to, self.size + 1 - y_to)
                 temp_pi[self.action_conversion__explicit_to_index(explicit)]=prob
-        symmetries.append((temp_board, temp_pi))
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_x, self.size + 1 - king_y)))
 
         # vertical flip
         temp_board = np.flip(temp_board, 0)
@@ -221,8 +222,8 @@ class TaflGame(Game):
             else:
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (x_from, self.size + 1 - y_from), (x_to, self.size + 1 - y_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)]=prob
-        symmetries.append((temp_board, temp_pi))
+                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
+        symmetries.append((temp_board, temp_pi, (king_x, self.size + 1 - king_y)))
 
         # rotation
         temp_board = np.flip(temp_board, 1)
@@ -235,7 +236,7 @@ class TaflGame(Game):
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (self.size + 1 - y_from, x_from), (self.size + 1 - y_to, x_to)
                 temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi))
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_y, king_x)))
 
         # rotation and horizontal flip
         temp_board = np.flip(temp_board, 0)
@@ -247,7 +248,7 @@ class TaflGame(Game):
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (y_from, x_from), (y_to, x_to)
                 temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi))
+        symmetries.append((temp_board, temp_pi, (king_y, king_x)))
 
         # rotation and horizontal and vertical flip
         temp_board = np.flip(temp_board, 1)
@@ -259,7 +260,7 @@ class TaflGame(Game):
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (y_from, self.size + 1 - x_from), (y_to, self.size + 1 - x_to)
                 temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi))
+        symmetries.append((temp_board, temp_pi, (king_y, self.size + 1 - king_x)))
 
         # rotation and vertical flip
         temp_board = np.flip(temp_board, 0)
@@ -271,7 +272,7 @@ class TaflGame(Game):
                 ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
                 explicit = (self.size + 1 - y_from, self.size + 1 - x_from), (self.size + 1 - y_to, self.size + 1 - x_to)
                 temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi))
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_y, king_x)))
 
         return symmetries
 
