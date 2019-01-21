@@ -29,9 +29,9 @@ args = dotdict({
     'batch_size': 64,
     'cuda': torch.cuda.is_available(),
     'num_channels': 512,
-    'num_scalar_values': 1, ### bei Änderung der Anzahl der eingegebenen skalaren Werte:
+    'num_scalar_values': 2,  # ## bei Änderung der Anzahl der eingegebenen skalaren Werte:
     #                               1. Hier die richtige Anzahl eintragen
-    #                               2. Bei Coach.execute(...) Methode die zusätzlichen Werte ins letzte Tupel eintragen
+    #                               2. Bei TaflGame.getSymmetries(...) Methode die zusätzlichen Werte ins letzte Tupel eintragen
     #                                       (dort wo aktuell "(x[1],)" steht)
     #                               3. Bei MCTS.search(...) in der Zeile, in der
     #                                     "self.Ps[s], v = self.nnet.predict(canonicalBoard, np.array([next_player]))"
@@ -67,7 +67,6 @@ class NNetWrapper(NeuralNet):
 
             while batch_idx < int(len(examples)/args.batch_size):
                 sample_ids = np.random.randint(len(examples), size=args.batch_size)
-                x = list(zip(*[examples[i] for i in sample_ids]))
                 boards, pis, vs, scalar_values = list(zip(*[examples[i] for i in sample_ids]))
                 boards = torch.FloatTensor(np.array(boards).astype(np.float64))
                 scalar_values = torch.FloatTensor(np.array(scalar_values).astype(np.float64))

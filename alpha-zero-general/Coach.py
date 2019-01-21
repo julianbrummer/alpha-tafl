@@ -56,9 +56,9 @@ class Coach():
             temp = int(episodeStep < self.args.tempThreshold)
 
             pi = self.mcts.getActionProb(canonicalBoard, self.curPlayer, temp=temp)
-            sym = self.game.getSymmetries(canonicalBoard, pi)
-            for b,p in sym:
-                trainExamples.append([b, self.curPlayer, p, None])
+            sym = self.game.getSymmetries(canonicalBoard, pi, canonicalBoard.king_position)
+            for b,p, scalar_values in sym:
+                trainExamples.append([b, self.curPlayer, p, scalar_values])
 
             action = np.random.choice(len(pi), p=pi)
             if action == 0:
@@ -73,7 +73,7 @@ class Coach():
             if r!=0:
                 # if board.outcome == Outcome.black:
                 #     print(" black wins")
-                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), (x[1],)) for x in trainExamples]
+                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples]
 
     def learn(self):
         """
@@ -108,7 +108,7 @@ class Coach():
                     # bookkeeping + plot progress
                     eps_time.update(time.time() - end)
                     end = time.time()
-                    bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps+1, maxeps=self.args.numEps, et=eps_time.avg,
+                    bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps + 1, maxeps=self.args.numEps, et=eps_time.avg,
                                                                                                                total=bar.elapsed_td, eta=bar.eta_td)
                     bar.next()
                 bar.finish()
@@ -147,9 +147,8 @@ class Coach():
             nmcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)
 
             print('PITTING AGAINST PREVIOUS VERSION')
-            # originally:                           v<---np.argmax(..................................)
-            arena = Arena(lambda board, turn_player: (pmcts.getActionProb(board, turn_player, temp=0)),
-                          lambda board, turn_player: (nmcts.getActionProb(board, turn_player, temp=0)),
+            arena = Arena(lambda board, turn_player: np.argmax(pmcts.getActionProb(board, turn_player, temp=0)),
+                          lambda board, turn_player: np.argmax(nmcts.getActionProb(board, turn_player, temp=0)),
                           self.game)
             pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black \
                 = arena.playGames(self.args.arenaCompare, self.args.profile_arena)
@@ -159,11 +158,16 @@ class Coach():
             if train_black:
                 pwins_color = pwins_black
                 nwins_color = nwins_black
+                pwins_other_color = pwins_white
+                nwins_other_color = nwins_white
             else:
                 pwins_color = pwins_white
                 nwins_color = nwins_white
+                pwins_other_color = pwins_black
+                nwins_other_color = nwins_black
 
-            if pwins_color+nwins_color > 0 and float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold:
+            if pwins+nwins > 0 and float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold \
+                    and nwins_other_color >= pwins_other_color:
                 print('REJECTING NEW MODEL')
                 if train_black:
                     self.black_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_black.pth.tar')
@@ -172,14 +176,16 @@ class Coach():
             else:
                 print('ACCEPTING NEW MODEL')
                 if train_black:
-                    self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
-                    self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best.pth.tar')
-                    if nwins_black / nwins_white > 0.8:
+                    # self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
+                    self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
+                    if nwins_white == 0 or nwins_black / nwins_white >= self.args.train_other_network_threshold:
+                        print("training white neural net next")
                         train_black = False
                 else:
-                    self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
-                    self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best.pth.tar')
-                    if nwins_white / nwins_black > 0.8:
+                    # self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
+                    self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_white.pth.tar')
+                    if nwins_black == 0 or nwins_white / nwins_black > self.args.train_other_network_threshold:
+                        print("training black neural net next")
                         train_black = True
 
     def getCheckpointFile(self, iteration, player=None):
@@ -189,22 +195,22 @@ class Coach():
         folder = self.args.checkpoint
         if not os.path.exists(folder):
             os.makedirs(folder)
-        filename = os.path.join(folder, self.getCheckpointFile(iteration)+".examples")
+        filename = os.path.join(folder, "training.examples")
         with open(filename, "wb+") as f:
             Pickler(f).dump(self.trainExamplesHistory)
         f.closed
 
     def loadTrainExamples(self):
-        modelFile = os.path.join(self.args.load_folder_file[0], self.args.load_folder_file[1])
-        examplesFile = modelFile+".examples"
-        if not os.path.isfile(examplesFile):
-            print(examplesFile)
+        folder = self.args.checkpoint
+        filename = os.path.join(folder, "training.examples")
+        if not os.path.isfile(filename):
+            print(filename)
             r = input("File with trainExamples not found. Continue? [y|n]")
             if r != "y":
                 sys.exit()
         else:
             print("File with trainExamples found. Read it.")
-            with open(examplesFile, "rb") as f:
+            with open(filename, "rb") as f:
                 self.trainExamplesHistory = Unpickler(f).load()
             f.closed
             # examples based on the model were already collected (loaded)

@@ -445,4 +445,5 @@ class TaflBoard:
 
     # bytes are much faster than strings, so use this method if you can
     def bytes(self):
-        return self.board.tostring() + self.board_states_dict[self.board.tobytes()].to_bytes(1, byteorder='big')
+        return self.board[1:self.size + 1, 1: self.size + 1].tostring() \
+               + self.board_states_dict[self.board.tobytes()].to_bytes(1, byteorder='big')

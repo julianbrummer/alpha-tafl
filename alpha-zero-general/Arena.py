@@ -46,13 +46,12 @@ class Arena():
                 assert(self.display)
                 print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
-            probs = players[curPlayer+1](self.game.getCanonicalForm(board, curPlayer), curPlayer)
-            action = np.argmax(probs)
+            action = players[curPlayer+1](self.game.getCanonicalForm(board, curPlayer), curPlayer)
 
-            valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
+            # valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
 
             # don't know why it works when we just comment this out...
-            #if valids[action] == 0:
+            # if valids[action] == 0:
             #    print("\nArena bug occured in turn " + str(it) + ":\naction: "
             #          + str(self.game.action_conversion__index_to_explicit(action))
             #          + ", turn player: " + str(Player(curPlayer)))
@@ -60,7 +59,9 @@ class Arena():
             #    assert 1. in self.game.getValidMoves(board, curPlayer)
             #    assert valids[action] > 0
             #    return None
+            board.print_game_over_reason = True
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
+            board.print_game_over_reason = False
         if verbose:
             assert(self.display)
             print("Game over: Turn ", str(it), "Result ", str(self.game.getGameEnded(board, 1)))
