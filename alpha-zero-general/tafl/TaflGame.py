@@ -101,12 +101,17 @@ class TaflGame(Game):
         no_immediate_loss_possible = False
         move_set = board.get_valid_actions(player)
         for explicit in move_set:
-            if not board.would_next_board_be_third(explicit):
+            if board.would_next_board_be_third(explicit):
+                array = np.zeros(self.getActionSize())
+                index = self.action_conversion__explicit_to_index(explicit)
+                assert self.action_conversion__index_to_explicit(index) == explicit
+                array[index] = 1
+                return array
+            elif not board.would_next_board_lead_to_third(player):
                 index = self.action_conversion__explicit_to_index(explicit)
                 assert self.action_conversion__index_to_explicit(index) == explicit
                 array[index] = 1
                 no_immediate_loss_possible = True
-
         # if all possible moves lead to a loss...
         if not no_immediate_loss_possible:
             # ... check if there are actually moves that can be made. If not, just choose an impossible move and the
@@ -115,11 +120,10 @@ class TaflGame(Game):
             # class already, but the network is still asked to select a move. Therefore we need to give the program at
             # least one move to choose from.
             if len(move_set) == 0:
-                index = len(array) - 1
+                index = self.getActionSize()-1
             else:
                 index = self.action_conversion__explicit_to_index(random.choice(move_set))
             array[index] = 1
-
         return array
 
     def action_conversion__explicit_to_index(self, explicit):

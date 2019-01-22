@@ -8,8 +8,8 @@ import time, os, sys
 from pickle import Pickler, Unpickler
 from random import shuffle
 
-from tafl.TaflBoard import Player, Outcome
-from tafl.TaflGame import MovementType
+from tafl.TaflBoard import Player
+from trainingData import read_data
 
 
 class Coach():
@@ -25,7 +25,9 @@ class Coach():
         self.black_pnet = self.black_nnet.__class__(self.game)
         self.args = args
         self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)
-        self.trainExamplesHistory = []    # history of examples from args.numItersForTrainExamplesHistory latest iterations
+        # self.trainExamplesHistory = []  ###########
+        self.trainExamplesHistory_white = []    # history of examples from args.numItersForTrainExamplesHistory latest iterations
+        self.trainExamplesHistory_black = []    # history of examples from args.numItersForTrainExamplesHistory latest iterations
         self.skipFirstSelfPlay = False # can be overriden in loadTrainExamples()
 
     def executeEpisode(self):
@@ -44,7 +46,9 @@ class Coach():
                            pi is the MCTS informed policy vector, v is +1 if
                            the player eventually won the game, else -1.
         """
-        trainExamples = []
+        trainExamples_white = []
+        trainExamples_black = []
+        # trainExamples = []
         board = self.game.getInitBoard()
         self.curPlayer = 1
         episodeStep = 0
@@ -57,8 +61,11 @@ class Coach():
 
             pi = self.mcts.getActionProb(canonicalBoard, self.curPlayer, temp=temp)
             sym = self.game.getSymmetries(canonicalBoard, pi, canonicalBoard.king_position)
+
+            player_train_examples = trainExamples_white if self.curPlayer == Player.white else trainExamples_black
             for b,p, scalar_values in sym:
-                trainExamples.append([b, self.curPlayer, p, scalar_values])
+                player_train_examples.append([b, self.curPlayer, p, scalar_values])
+                # trainExamples.append([b, self.curPlayer, p, scalar_values])
 
             action = np.random.choice(len(pi), p=pi)
             if action == 0:
@@ -73,7 +80,8 @@ class Coach():
             if r!=0:
                 # if board.outcome == Outcome.black:
                 #     print(" black wins")
-                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples]
+                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples_white], \
+                       [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples_black]
 
     def learn(self):
         """
@@ -84,14 +92,15 @@ class Coach():
         only if it wins >= updateThreshold fraction of games.
         """
 
-        train_black = True
+        train_black = self.args.train_black_first
 
         for i in range(1, self.args.numIters+1):
             # bookkeeping
             print('------ITER ' + str(i) + '------')
             # examples of the iteration
             if not self.skipFirstSelfPlay or i>1:
-                iterationTrainExamples = deque([], maxlen=self.args.maxlenOfQueue)
+                iterationTrainExamples_white = deque([], maxlen=self.args.maxlenOfQueue)
+                iterationTrainExamples_black = deque([], maxlen=self.args.maxlenOfQueue)
     
                 eps_time = AverageMeter()
                 bar = Bar('Self Play', max=self.args.numEps)
@@ -103,7 +112,9 @@ class Coach():
 
                 for eps in range(self.args.numEps):
                     self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)   # reset search tree
-                    iterationTrainExamples += self.executeEpisode()
+                    white_examples, black_examples = self.executeEpisode()
+                    iterationTrainExamples_white += white_examples
+                    iterationTrainExamples_black += black_examples
     
                     # bookkeeping + plot progress
                     eps_time.update(time.time() - end)
@@ -117,20 +128,16 @@ class Coach():
                     prof.print_stats(sort=2)
 
                 # save the iteration examples to the history 
-                self.trainExamplesHistory.append(iterationTrainExamples)
+                self.trainExamplesHistory_white.append(iterationTrainExamples_white)
+                self.trainExamplesHistory_black.append(iterationTrainExamples_black)
                 
-            if len(self.trainExamplesHistory) > self.args.numItersForTrainExamplesHistory:
-                print("len(trainExamplesHistory) =", len(self.trainExamplesHistory), " => remove the oldest trainExamples")
-                self.trainExamplesHistory.pop(0)
+            if len(self.trainExamplesHistory_white) > self.args.numItersForTrainExamplesHistory:
+                print("len(trainExamplesHistory) =", len(self.trainExamplesHistory_white), " => remove the oldest trainExamples")
+                self.trainExamplesHistory_white.pop(0)
+                self.trainExamplesHistory_black.pop(0)
             # backup history to a file
             # NB! the examples were collected using the model from the previous iteration, so (i-1)  
             self.saveTrainExamples(i-1)
-            
-            # shuffle examlpes before training
-            trainExamples = []
-            for e in self.trainExamplesHistory:
-                trainExamples.extend(e)
-            shuffle(trainExamples)
 
             # training new network, keeping a copy of the old one
             self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='temp_white.pth.tar')
@@ -141,8 +148,18 @@ class Coach():
             pmcts = MCTS(self.game, self.white_pnet, self.black_pnet, self.args)
 
             if train_black:
+                # shuffle examples before training
+                trainExamples = []
+                for e in self.trainExamplesHistory_black:
+                    trainExamples.extend(e)
+                shuffle(trainExamples)
                 self.black_nnet.train(trainExamples)
             else:
+                # shuffle examples before training
+                trainExamples = []
+                for e in self.trainExamplesHistory_white:
+                    trainExamples.extend(e)
+                shuffle(trainExamples)
                 self.white_nnet.train(trainExamples)
             nmcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)
 
@@ -195,23 +212,34 @@ class Coach():
         folder = self.args.checkpoint
         if not os.path.exists(folder):
             os.makedirs(folder)
-        filename = os.path.join(folder, "training.examples")
-        with open(filename, "wb+") as f:
-            Pickler(f).dump(self.trainExamplesHistory)
-        f.closed
+        filename_white = os.path.join(folder, "training_white.examples")
+        filename_black = os.path.join(folder, "training_black.examples")
+        with open(filename_white, "wb+") as f:
+            Pickler(f).dump(self.trainExamplesHistory_white)
+        with open(filename_black, "wb+") as f:
+            Pickler(f).dump(self.trainExamplesHistory_black)
 
     def loadTrainExamples(self):
         folder = self.args.checkpoint
-        filename = os.path.join(folder, "training.examples")
-        if not os.path.isfile(filename):
-            print(filename)
+        filename_white = os.path.join(folder, "training_white.examples")
+        filename_black = os.path.join(folder, "training_black.examples")
+        if not os.path.isfile(filename_white) or not os.path.isfile(filename_black):
+            print(filename_white)
+            print(filename_black)
             r = input("File with trainExamples not found. Continue? [y|n]")
             if r != "y":
                 sys.exit()
         else:
             print("File with trainExamples found. Read it.")
-            with open(filename, "rb") as f:
-                self.trainExamplesHistory = Unpickler(f).load()
-            f.closed
+            with open(filename_white, "rb") as f:
+                self.trainExamplesHistory_white = Unpickler(f).load()
+            with open(filename_black, "rb") as f:
+                self.trainExamplesHistory_black = Unpickler(f).load()
             # examples based on the model were already collected (loaded)
             self.skipFirstSelfPlay = True
+
+    def load_expert_examples(self):
+        self.trainExamplesHistory_white, self.trainExamplesHistory_black  = read_data(self.args)
+        print(len(self.trainExamplesHistory_black))
+        self.skipFirstSelfPlay = True
+

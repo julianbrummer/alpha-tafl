@@ -59,7 +59,7 @@ class Arena():
             #    assert 1. in self.game.getValidMoves(board, curPlayer)
             #    assert valids[action] > 0
             #    return None
-            board.print_game_over_reason = True
+            board.print_game_over_reason = False
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
             board.print_game_over_reason = False
         if verbose:

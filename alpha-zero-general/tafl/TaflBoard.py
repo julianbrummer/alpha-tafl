@@ -21,9 +21,9 @@ class TileState(IntEnum):
 
 class Outcome(IntEnum):
     ongoing = 0
-    white = 1
-    black = 2
-    draw = 3
+    white = -1
+    black = 1
+    draw = 2
 
 
 class TaflBoard:
@@ -149,13 +149,13 @@ class TaflBoard:
     #  move = ((fromX,fromY),(toX,toY))
     def can_do_action(self, move, player):
         (position_from, position_to) = move
-        player_tilestate = TileState.black if player == Player.black else TileState.white | TileState.throne
+        player_tilestate = TileState.black if player == Player.black else TileState.white | TileState.king
         return self.board[position_from] & player_tilestate != 0 and move in self.get_valid_actions_for_piece(position_from)
 
     # returns all valid actions for a player as a list of actions
     def get_valid_actions(self, turn_player):
         valid_actions = []
-        player_tilestate = TileState.black if turn_player == Player.black else TileState.white | TileState.throne
+        player_tilestate = TileState.black if turn_player == Player.black else TileState.white | TileState.king
         for position, tilestate in np.ndenumerate(self.board):
             if tilestate & player_tilestate != 0:
                 valid_actions.extend(self.get_valid_actions_for_piece(position))
@@ -177,28 +177,32 @@ class TaflBoard:
                     (is_king and self.board[x_other, y] & (TileState.corner | TileState.throne) != 0):
                 valid_actions.append(((x, y), (x_other, y)))
             else:
-                break
+                if self.board[x_other, y] != TileState.throne:
+                    break
         # second direction
         for x_other in range(x + 1, self.size + 1):
             if self.board[x_other, y] == TileState.empty or \
                     (is_king and self.board[x_other, y] & (TileState.corner | TileState.throne) != 0):
                 valid_actions.append(((x, y), (x_other, y)))
             else:
-                break
+                if self.board[x_other, y] != TileState.throne:
+                    break
         # third direction
         for y_other in reversed(range(1, y)):
             if self.board[x, y_other] == TileState.empty or \
                     (is_king and self.board[x, y_other] & (TileState.corner | TileState.throne) != 0):
                 valid_actions.append(((x, y), (x, y_other)))
             else:
-                break
+                if self.board[x, y_other] != TileState.throne:
+                    break
         # forth direction
         for y_other in range(y + 1, self.size + 1):
             if self.board[x, y_other] == TileState.empty or \
                     (is_king and self.board[x, y_other] & (TileState.corner | TileState.throne) != 0):
                 valid_actions.append(((x, y), (x, y_other)))
             else:
-                break
+                if self.board[x, y_other] != TileState.throne:
+                    break
         return valid_actions
 
     # executes "move" for the player "player" whose turn it is
@@ -230,7 +234,7 @@ class TaflBoard:
             if self.print_to_console:
                 print(str(player) + " moves a piece from " + str((from_x, from_y)) + " to " + str((to_x, to_y)))
             # if king is moving: update king position and check if he reached a corner
-            if self.board[from_x, from_y] == TileState.king:
+            if self.board[from_x, from_y] & TileState.king != 0:
                 self.king_position = (to_x, to_y)
                 if self.board[self.king_position] == TileState.corner:
                     self.outcome = Outcome.white
@@ -251,7 +255,7 @@ class TaflBoard:
             if board_bytes in self.board_states_dict:
                 self.board_states_dict[board_bytes] += 1
                 if self.board_states_dict[board_bytes] == 3:
-                    if player == Player.white:
+                    if player == Player.black:
                         self.outcome = Outcome.black
                         if self.print_to_console or self.print_game_over_reason:
                             print("White forced the same board state for third time. Black wins!")
@@ -323,17 +327,39 @@ class TaflBoard:
                 print(str(turn_player) + " captures piece at " + str((x, y - 1)))
 
         # check capture king
-        king_x, king_y = self.king_position
-        if (self.board[king_x + 1, king_y] & (TileState.black | TileState.throne) != 0) \
-                and (self.board[king_x - 1, king_y] & (TileState.black | TileState.throne) != 0) \
-                and (self.board[king_x, king_y + 1] & (TileState.black | TileState.throne) != 0) \
-                and (self.board[king_x, king_y - 1] & (TileState.black | TileState.throne) != 0):
-            self.outcome = Outcome.black
-            captured_pieces.append((king_x, king_y))
-            if self.print_to_console or self.print_game_over_reason:
-                print("Black wins by capturing the king at " + str(self.king_position) + "!")
-            if self.save_game:
-                entry += "4, " + str(self.king_position) + "\n"
+        king_capture = False
+        # check if this piece has moved next to the king at all (otherwise it would be impossible for the king to move
+        # between two black pieces, as is done in the examples)
+        if self.board[x + 1, y] & TileState.king != 0 \
+                    and self.board[x + 2, y] & (own_tile_state | TileState.throne) != 0 \
+                or self.board[x - 1, y] & TileState.king != 0 \
+                    and self.board[x - 2, y] & (own_tile_state | TileState.throne) != 0 \
+                or self.board[x, y + 1] & TileState.king != 0 \
+                    and self.board[x, y + 2] & (own_tile_state | TileState.throne) != 0 \
+                or self.board[x, y - 1] & TileState.king != 0 \
+                    and self.board[x, y - 2] & (own_tile_state | TileState.throne) != 0:
+
+            king_x, king_y = self.king_position
+            # check: (king is on or next to throne and surrounded on all for sides)
+            # or (between to black pieces in vertical direction)
+            # or (between to black pieces in horizontal direction)
+            if (self.board[king_x, king_y] | self.board[king_x + 1, king_y] | self.board[king_x - 1, king_y] |
+                self.board[king_x, king_y + 1] | self.board[king_x, king_y - 1]) & TileState.throne != 0:
+                if self.board[king_x + 1, king_y] & (TileState.black | TileState.throne) != 0 \
+                        and self.board[king_x - 1, king_y] & (TileState.black | TileState.throne) != 0 \
+                        and self.board[king_x, king_y + 1] & (TileState.black | TileState.throne) != 0 \
+                        and self.board[king_x, king_y - 1] & (TileState.black | TileState.throne) != 0:
+                    king_capture = True
+            elif self.board[king_x + 1, king_y] & TileState.black != 0\
+                    and self.board[king_x - 1, king_y] & TileState.black != 0\
+                    or self.board[king_x, king_y + 1] & TileState.black != 0\
+                    and self.board[king_x, king_y - 1] & TileState.black != 0:
+                king_capture = True
+            if king_capture:
+                self.outcome = Outcome.black
+                captured_pieces.append((king_x, king_y))
+                if self.print_to_console or self.print_game_over_reason:
+                    print("Black wins by capturing the king at " + str(self.king_position) + "!")
 
         # if len(captured_pieces) > 0:
         #     self.turns_without_capture_count = 0
@@ -345,14 +371,13 @@ class TaflBoard:
 
         return captured_pieces
 
-    # checks whether the next move would lead to a board state that has occurred two times already, thus leading
-    # to a loss for the player exevuting that move
-    def would_next_board_be_third(self, move):
+    # checks whether the next move would lead to a board state where the opponent of the turn player could make a move
+    # such that the resulting board state will be seen for the third time. This would lead to a win for the opponent
+    def would_next_board_lead_to_third(self, move, turn_player):
         move_from, move_to = move
         x_to, y_to = move_to
         previous_from = self.board[move_from]
         previous_to = self.board[x_to, y_to]
-        result = True
 
         # check captures
         own_tile_state = TileState.black if previous_from & TileState.black != 0 else TileState.white | TileState.king
@@ -363,28 +388,77 @@ class TaflBoard:
         # check capture right
         if self.board[x_to + 1, y_to] & opponent_pawn_tile_state != 0 \
                 and self.board[x_to + 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
-            result = False
+            return False
         # check capture left
         if self.board[x_to - 1, y_to] & opponent_pawn_tile_state != 0 \
                 and self.board[x_to - 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
-            result = False
+            return False
         # check capture bottom
         if self.board[x_to, y_to + 1] & opponent_pawn_tile_state != 0 \
                 and self.board[x_to, y_to + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
-            result = False
+            return False
         # check capture top
         if self.board[x_to, y_to - 1] & opponent_pawn_tile_state != 0 \
                 and self.board[x_to, y_to - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
-            result = False
+            return False
 
+        # if nothing is captured and the current board state has been seen two times already,
+        # then the next player can just revert the currently checked move and win
+        board_bytes = self.board.tobytes()
+        if board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == 2:
+            return True
+
+        # see regular move method for a short explanation
+        self.board[move_to] = (self.board[move_to] & TileState.throne) | \
+                              (self.board[move_from] & (TileState.white | TileState.black | TileState.king))
+        self.board[move_from] = self.board[move_from] & \
+                                ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
+        result = False
+        for action in self.get_valid_actions(-1 * turn_player):
+            result = result or self.would_next_board_be_third(action)
+        self.board[move_from] = previous_from
+        self.board[move_to] = previous_to
+        return result
+
+    # checks whether the next move would lead to a board state that has occurred two times already, thus leading
+    # to a win for the player exevuting that move
+    def would_next_board_be_third(self, action):
+        move_from, move_to = action
+        x_to, y_to = move_to
+        previous_from = self.board[move_from]
+        previous_to = self.board[x_to, y_to]
+
+        # check captures
+        own_tile_state = TileState.black if previous_from & TileState.black != 0 else TileState.white | TileState.king
+        # TileState.white for Player.black, TileState.black for Player.white
+        # this way is necessary because capturing the king works differently and is done further below
+        opponent_pawn_tile_state = own_tile_state ^ (TileState.black | TileState.white)
+
+        # check capture right
+        if self.board[x_to + 1, y_to] & opponent_pawn_tile_state != 0 \
+                and self.board[x_to + 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            return False
+        # check capture left
+        if self.board[x_to - 1, y_to] & opponent_pawn_tile_state != 0 \
+                and self.board[x_to - 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            return False
+        # check capture bottom
+        if self.board[x_to, y_to + 1] & opponent_pawn_tile_state != 0 \
+                and self.board[x_to, y_to + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            return False
+        # check capture top
+        if self.board[x_to, y_to - 1] & opponent_pawn_tile_state != 0 \
+                and self.board[x_to, y_to - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            return False
 
         # see regular move method for a short explanation
         self.board[move_to] = (self.board[move_to] & TileState.throne) | \
                                  (self.board[move_from] & (TileState.white | TileState.black | TileState.king))
         self.board[move_from] = self.board[move_from] & \
                                      ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
+
         board_bytes = self.board.tobytes()
-        result = result and board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == 2
+        result = board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == 2
         self.board[move_from] = previous_from
         self.board[move_to] = previous_to
         return result

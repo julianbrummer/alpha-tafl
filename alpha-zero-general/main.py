@@ -2,11 +2,11 @@ from tafl.pytorch.NNet import NNetWrapper as nn
 from Coach import Coach
 from tafl.TaflGame import TaflGame
 from utils import dotdict
-from trainingData import TrainingData
+from trainingData import read_data
 
 args = dotdict({
     'numIters': 1000,
-    'numEps': 5,
+    'numEps': 50,
     'tempThreshold': 15,
     'updateThreshold': 0.57,
     'maxlenOfQueue': 200000,
@@ -21,6 +21,7 @@ args = dotdict({
     'load_folder_file_black': ('./temp/', 'best_black.pth.tar'),
     'numItersForTrainExamplesHistory': 20,
 
+    'train_black_first': True,
     'train_other_network_threshold': 1,    # compared with (network that is currently trained wins)/(other network wins)
                                            # toggles the network being trained when threshold is reached
 
@@ -41,9 +42,10 @@ if __name__=="__main__":
         white_nnet.save_checkpoint(folder=args.checkpoint, filename='temp_white.pth.tar')
         black_nnet.save_checkpoint(folder=args.checkpoint, filename='temp_black.pth.tar')
 
-
     c = Coach(g, white_nnet, black_nnet, args)
     if args.load_model:
         print("Load trainExamples from file")
         c.loadTrainExamples()
+    else:
+        c.load_expert_examples()
     c.learn()
