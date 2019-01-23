@@ -1,6 +1,7 @@
 import cProfile
+import os
+from pickle import Pickler
 
-import numpy as np
 from pytorch_classification.utils import Bar, AverageMeter
 import time
 
@@ -9,7 +10,7 @@ class Arena():
     """
     An Arena class where any 2 agents can be pit against each other.
     """
-    def __init__(self, player1, player2, game, display=None):
+    def __init__(self, player1, player2, game, display=None, replay=False):
         """
         Input:
             player 1,2: two functions that takes board as input, return action
@@ -25,6 +26,8 @@ class Arena():
         self.player2 = player2
         self.game = game
         self.display = display
+        self.replay = replay
+        self.game_id = 0
 
     def playGame(self, verbose=False):
         """
@@ -40,12 +43,16 @@ class Arena():
         curPlayer = 1
         board = self.game.getInitBoard()
         it = 0
+        actions = []
         while self.game.getGameEnded(board, curPlayer)==0:
             it+=1
             if verbose:
                 assert(self.display)
                 print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
+            if self.replay:
+                # TODO: insert code for graphical output
+                pass
             action = players[curPlayer+1](self.game.getCanonicalForm(board, curPlayer), curPlayer)
 
             # valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
@@ -62,10 +69,17 @@ class Arena():
             board.print_game_over_reason = False
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
             board.print_game_over_reason = False
+            actions.append(action)
         if verbose:
             assert(self.display)
             print("Game over: Turn ", str(it), "Result ", str(self.game.getGameEnded(board, 1)))
             self.display(board)
+        if not self.replay:
+            if not os.path.exists('./arena_replays/'):
+                os.makedirs('./arena_replays/')
+            with open("./arena_replays/arena_replay_" + str(self.game_id).zfill(3) + ".taflreplay", "wb+") as f:
+                Pickler(f).dump(actions)
+            self.game_id += 1
         return self.game.getGameEnded(board, 1)
 
     def playGames(self, num, profile, verbose=False):
@@ -78,6 +92,10 @@ class Arena():
             twoWon: games won by player2
             draws:  games won by nobody
         """
+        if self.replay:
+            self.playGame()
+            return None
+
         eps_time = AverageMeter()
         bar = Bar('Arena.playGames', max=num)
         end = time.time()
