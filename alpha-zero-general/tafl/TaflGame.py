@@ -69,21 +69,13 @@ class TaflGame(Game):
             # assert board.outcome != Outcome.ongoing, str(player) + " selected 'no action', but had still moves left\n" \
             #                                          + str(board) + "\n" + str(list(board.get_valid_actions(player)))
         else:
-            explicit = self.action_conversion__index_to_explicit(action)
-            assert self.action_conversion__explicit_to_index(explicit) == action
+            explicit = action_conversion__index_to_explicit(action, self.size)
+            assert action_conversion__explicit_to_index(explicit, self.size) == action
             if copy_board:
                 board = copy.deepcopy(board)
             board.do_action(explicit, player)
         next_player = -1 if player == 1 else 1
         return board, next_player
-
-    def action_conversion__index_to_explicit(self, action):
-        from_x, from_y, to, movement_type = np.unravel_index(action, (self.size, self.size, self.size, 2))
-        if movement_type == MovementType.horizontal:
-            action = ((from_x + 1, from_y + 1), (to + 1, from_y + 1))  # all coordinates + 1 because of the border
-        else:
-            action = ((from_x + 1, from_y + 1), (from_x + 1, to + 1))  # all coordinates + 1 because of the border
-        return action
 
     def getValidMoves(self, board, player):
         """
@@ -101,15 +93,15 @@ class TaflGame(Game):
         no_immediate_loss_possible = False
         move_set = board.get_valid_actions(player)
         for explicit in move_set:
-            if board.would_next_board_be_third(explicit):
+            if board.would_next_board_be_second_third(3, explicit):
                 array = np.zeros(self.getActionSize())
-                index = self.action_conversion__explicit_to_index(explicit)
-                assert self.action_conversion__index_to_explicit(index) == explicit
+                index = action_conversion__explicit_to_index(explicit, self.size)
+                assert action_conversion__index_to_explicit(index, self.size) == explicit
                 array[index] = 1
                 return array
-            elif not board.would_next_board_lead_to_third(player):
-                index = self.action_conversion__explicit_to_index(explicit)
-                assert self.action_conversion__index_to_explicit(index) == explicit
+            elif not board.would_next_board_lead_to_third(explicit, player):
+                index = action_conversion__explicit_to_index(explicit, self.size)
+                assert action_conversion__index_to_explicit(index, self.size) == explicit
                 array[index] = 1
                 no_immediate_loss_possible = True
         # if all possible moves lead to a loss...
@@ -122,17 +114,9 @@ class TaflGame(Game):
             if len(move_set) == 0:
                 index = self.getActionSize()-1
             else:
-                index = self.action_conversion__explicit_to_index(random.choice(move_set))
+                index = action_conversion__explicit_to_index(random.choice(move_set), self.size)
             array[index] = 1
         return array
-
-    def action_conversion__explicit_to_index(self, explicit):
-        (x_from, y_from), (x_to, y_to) = explicit
-        movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
-        to = x_to if movement_type == MovementType.horizontal else y_to
-        result = (((x_from - 1) * self.size + y_from - 1) * self.size + to - 1) * 2 + movement_type   # all coordinates -1 because of the border
-        assert 0 <= result < self.size*self.size*self.size * 2
-        return result
 
     def getGameEnded(self, board, player):
         """
@@ -188,10 +172,15 @@ class TaflGame(Game):
         king_x, king_y = king_position
 
         symmetries = []
+        occurrences = np.zeros(self.size*self.size*self.size*2)
+        for index, prob in actions_and_probs:
+            ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
+            explicit = (self.size + 1 - x_from, y_from), (self.size + 1 - x_to, y_to)
+            occurrences[index] = 1 if board.would_next_board_be_second_third(2, explicit) else 0
 
         #original
         temp_board = np.copy(board.board[1:self.size + 1, 1:self.size + 1])
-        symmetries.append((temp_board, pi, (king_x, king_y)))
+        symmetries.append((temp_board, pi, (king_x, king_y), occurrences))
 
         # horizontal flip
         temp_board = np.flip(temp_board, 0)
@@ -200,10 +189,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (self.size + 1 - x_from, y_from), (self.size + 1 - x_to, y_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_x, king_y)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_x, king_y), occurrences))
 
         # horizontal and vertical flip
         temp_board = np.flip(temp_board, 1)
@@ -212,10 +201,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (self.size + 1 - x_from, self.size + 1 - y_from), (self.size + 1 - x_to, self.size + 1 - y_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)]=prob
-        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_x, self.size + 1 - king_y)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_x, self.size + 1 - king_y), occurrences))
 
         # vertical flip
         temp_board = np.flip(temp_board, 0)
@@ -224,10 +213,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (x_from, self.size + 1 - y_from), (x_to, self.size + 1 - y_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi, (king_x, self.size + 1 - king_y)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (king_x, self.size + 1 - king_y), occurrences))
 
         # rotation
         temp_board = np.flip(temp_board, 1)
@@ -237,10 +226,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (self.size + 1 - y_from, x_from), (self.size + 1 - y_to, x_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_y, king_x)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_y, king_x), occurrences))
 
         # rotation and horizontal flip
         temp_board = np.flip(temp_board, 0)
@@ -249,10 +238,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (y_from, x_from), (y_to, x_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi, (king_y, king_x)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (king_y, king_x), occurrences))
 
         # rotation and horizontal and vertical flip
         temp_board = np.flip(temp_board, 1)
@@ -261,10 +250,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (y_from, self.size + 1 - x_from), (y_to, self.size + 1 - x_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi, (king_y, self.size + 1 - king_x)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (king_y, self.size + 1 - king_x), occurrences))
 
         # rotation and vertical flip
         temp_board = np.flip(temp_board, 0)
@@ -273,10 +262,10 @@ class TaflGame(Game):
             if index == self.size * self.size * self.size * 2:
                 temp_pi[index] = prob
             else:
-                ((x_from, y_from), (x_to, y_to)) = self.action_conversion__index_to_explicit(index)
+                ((x_from, y_from), (x_to, y_to)) = action_conversion__index_to_explicit(index, self.size)
                 explicit = (self.size + 1 - y_from, self.size + 1 - x_from), (self.size + 1 - y_to, self.size + 1 - x_to)
-                temp_pi[self.action_conversion__explicit_to_index(explicit)] = prob
-        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_y, king_x)))
+                temp_pi[action_conversion__explicit_to_index(explicit, self.size)] = prob
+        symmetries.append((temp_board, temp_pi, (self.size + 1 - king_y, king_x), occurrences))
 
         return symmetries
 
@@ -291,3 +280,21 @@ class TaflGame(Game):
         """
         return board.bytes()
         # return str(board)
+
+
+def action_conversion__explicit_to_index(explicit, size):
+    (x_from, y_from), (x_to, y_to) = explicit
+    movement_type = MovementType.horizontal if y_from == y_to else MovementType.vertical
+    to = x_to if movement_type == MovementType.horizontal else y_to
+    result = (((x_from - 1) * size + y_from - 1) * size + to - 1) * 2 + movement_type   # all coordinates -1 because of the border
+    assert 0 <= result < size*size*size * 2
+    return result
+
+
+def action_conversion__index_to_explicit(action, size):
+    from_x, from_y, to, movement_type = np.unravel_index(action, (size, size, size, 2))
+    if movement_type == MovementType.horizontal:
+        action = ((from_x + 1, from_y + 1), (to + 1, from_y + 1))  # all coordinates + 1 because of the border
+    else:
+        action = ((from_x + 1, from_y + 1), (from_x + 1, to + 1))  # all coordinates + 1 because of the border
+    return action

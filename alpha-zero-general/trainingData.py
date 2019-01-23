@@ -2,10 +2,11 @@ import numpy as np
 import pickle
 from collections import deque
 from tafl.TaflBoard import TaflBoard, Player, Outcome, TileState
-from tafl.TaflGame import TaflGame, MovementType
+from tafl.TaflGame import TaflGame, MovementType, action_conversion__explicit_to_index
+
 
 # reads the data and removes all the games which do not clearly show a winner or are inconsistent with our rules
-def generate_training_example(game, board, action):
+def generate_training_example(game, board, action, turn_player):
     king_position = board.king_position
     pi = np.zeros(7*7*7*2+1)
 
@@ -41,7 +42,6 @@ def read_data(args):
                 and board.board[king_x, king_y - 1] & TileState.black != 0:
             second = True
         return "throne check: %s, other check: %s"%(first, second)
-
 
     training_data = pickle.load(open("full_game_stats.p", "rb"))
     outcomes = training_data['outcome']
@@ -117,10 +117,10 @@ def read_data(args):
             # print(str(action) + "  " + string)
             assert board.outcome == Outcome.ongoing, str(i)
 
-            symmetries = generate_training_example(game, board, action)
+            symmetries = generate_training_example(game, board, action, turn_player)
             player_train_examples = trainExamples_white if turn_player == Player.white else trainExamples_black
-            for b, p, scalar_values in symmetries:
-                player_train_examples.append([b, p, scalar_values])
+            for b, p, scalar_values, occurrences in symmetries:
+                player_train_examples.append([b, p, scalar_values, occurrences])
 
             board.do_action(action, turn_player)
             # print(board)
@@ -130,14 +130,16 @@ def read_data(args):
                                    + str(board.outcome) + ", actual: " + str(outcome_conversion_table[outcomes[i]]) \
                                    + "\n" + king_capture_check(board) + "\n example number:" + str(i)
 
-        training_data_white += [(x[0], x[1], board.outcome, x[2]) for x in trainExamples_white]
-        training_data_black += [(x[0], x[1], board.outcome, x[2]) for x in trainExamples_black]
+        training_data_white += [(x[0], x[1], board.outcome, x[2], x[3]) for x in trainExamples_white]
+        training_data_black += [(x[0], x[1], board.outcome, x[2], x[3]) for x in trainExamples_black]
 
         # split up into list format every "numEps" games
-        if usable_games % args.numEps == 0:
+        if args.split_player_examples_into_epochs and usable_games % args.numEps == 0:
             training_data_white_list.append(training_data_white)
             training_data_black_list.append(training_data_black)
             training_data_white = deque([], maxlen=args.maxlenOfQueue)
             training_data_black = deque([], maxlen=args.maxlenOfQueue)
 
+    training_data_white_list.append(training_data_white)
+    training_data_black_list.append(training_data_black)
     return training_data_white_list, training_data_black_list

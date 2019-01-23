@@ -250,6 +250,11 @@ class TaflBoard:
                                          ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
             captured_pieces = self.capture((to_x, to_y), player)
 
+            # if pieces have been captured, we can reset the board states dict because from now on there are less
+            # pieces on the board than there ever were
+            if len(captured_pieces) > 0:
+                self.board_states_dict = {}
+
             # update the board_states_dictionary so that we know whether the present board has occurred for the 3rd time
             board_bytes = self.board.tobytes()
             if board_bytes in self.board_states_dict:
@@ -415,14 +420,14 @@ class TaflBoard:
                                 ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
         result = False
         for action in self.get_valid_actions(-1 * turn_player):
-            result = result or self.would_next_board_be_third(action)
+            result = result or self.would_next_board_be_second_third(3, action)
         self.board[move_from] = previous_from
         self.board[move_to] = previous_to
         return result
 
-    # checks whether the next move would lead to a board state that has occurred two times already, thus leading
-    # to a win for the player exevuting that move
-    def would_next_board_be_third(self, action):
+    # checks whether the next move would lead to a board state that has occurred one/two times already
+    # (time=2 for check if the next board would be the second occurrence, time=3 for third occurrence)
+    def would_next_board_be_second_third(self, time, action):
         move_from, move_to = action
         x_to, y_to = move_to
         previous_from = self.board[move_from]
@@ -458,7 +463,7 @@ class TaflBoard:
                                      ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
 
         board_bytes = self.board.tobytes()
-        result = board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == 2
+        result = board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == time - 1
         self.board[move_from] = previous_from
         self.board[move_to] = previous_to
         return result

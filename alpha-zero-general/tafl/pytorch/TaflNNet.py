@@ -29,7 +29,8 @@ class TaflNNet(nn.Module):
         self.bn3 = nn.BatchNorm2d(args.num_channels)
         self.bn4 = nn.BatchNorm2d(args.num_channels)
 
-        self.fc1 = nn.Linear(args.num_channels*(self.board_x-4)*(self.board_y-4) + args.num_scalar_values, 1024)
+        self.fc1 = nn.Linear(args.num_channels*(self.board_x-4)*(self.board_y-4) + args.num_scalar_values +
+                             game.getActionSize() - 1, 1024)
         self.fc_bn1 = nn.BatchNorm1d(1024)
 
         self.fc2 = nn.Linear(1024, 512)
@@ -39,7 +40,7 @@ class TaflNNet(nn.Module):
 
         self.fc4 = nn.Linear(512, 1)
 
-    def forward(self, s, scalar_values):
+    def forward(self, s, scalar_values, occurrences):
                                                                      # s: batch_size x board_x x board_y
         s = s.view(-1, 1, self.board_x, self.board_y)                # batch_size x 1 x board_x x board_y
         s = F.relu(self.bn1(self.conv1(s)))                          # batch_size x num_channels x board_x x board_y
@@ -50,7 +51,7 @@ class TaflNNet(nn.Module):
 
         # print(s.shape)
         # print(scalar_values.shape)
-        combined = torch.cat((s, scalar_values), dim=1)
+        combined = torch.cat((s, scalar_values, occurrences), dim=1)
 
         combined = F.dropout(F.relu(self.fc_bn1(self.fc1(combined))), p=self.args.dropout, training=self.training)  # batch_size x 1024
         combined = F.dropout(F.relu(self.fc_bn2(self.fc2(combined))), p=self.args.dropout, training=self.training)  # batch_size x 512

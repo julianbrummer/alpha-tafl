@@ -67,22 +67,27 @@ class NNetWrapper(NeuralNet):
 
             while batch_idx < int(len(examples)/args.batch_size):
                 sample_ids = np.random.randint(len(examples), size=args.batch_size)
-                boards, pis, vs, scalar_values = list(zip(*[examples[i] for i in sample_ids]))
+                boards, pis, vs, scalar_values, occurrences = list(zip(*[examples[i] for i in sample_ids]))
                 boards = torch.FloatTensor(np.array(boards).astype(np.float64))
                 scalar_values = torch.FloatTensor(np.array(scalar_values).astype(np.float64))
+                occurrences = torch.FloatTensor(np.array(occurrences).astype((np.float64)))
                 target_pis = torch.FloatTensor(np.array(pis))
                 target_vs = torch.FloatTensor(np.array(vs).astype(np.float64))
 
                 # predict
                 if args.cuda:
-                    boards, target_pis, target_vs, scalar_values = boards.contiguous().cuda(), target_pis.contiguous().cuda(), target_vs.contiguous().cuda(), scalar_values.contiguous().cuda()
-                boards, target_pis, target_vs, scalar_values = Variable(boards), Variable(target_pis), Variable(target_vs), Variable(scalar_values)
+                    boards, target_pis, target_vs, scalar_values, occurrences \
+                        = boards.contiguous().cuda(), target_pis.contiguous().cuda(),target_vs.contiguous().cuda(),\
+                          scalar_values.contiguous().cuda(), occurrences.contiguous().cuda()
+                boards, target_pis, target_vs, scalar_values, occurrences \
+                    = Variable(boards), Variable(target_pis), Variable(target_vs), Variable(scalar_values), \
+                      Variable(occurrences)
 
                 # measure data loading time
                 data_time.update(time.time() - end)
 
                 # compute output
-                out_pi, out_v = self.nnet(boards, scalar_values)
+                out_pi, out_v = self.nnet(boards, scalar_values, occurrences)
                 l_pi = self.loss_pi(target_pis, out_pi)
                 l_v = self.loss_v(target_vs, out_v)
                 total_loss = l_pi + l_v
@@ -116,7 +121,7 @@ class NNetWrapper(NeuralNet):
             bar.finish()
 
 
-    def predict(self, board, scalar_values):
+    def predict(self, board, scalar_values, occurrences):
         """
         board: np array with board
         """
@@ -126,18 +131,22 @@ class NNetWrapper(NeuralNet):
         # preparing input
         board = torch.FloatTensor(board.board[1: self.board_x + 1, 1: self.board_y + 1].astype(np.float64))
         scalar_values = torch.FloatTensor(scalar_values)
+        occurrences = torch.FloatTensor(occurrences)
         if args.cuda:
             board = board.contiguous().cuda()
             scalar_values = scalar_values.contiguous().cuda()
+            occurrences = occurrences.contiguous().cuda()
         with torch.no_grad():
             board = Variable(board)
             board = board.view(1, self.board_x, self.board_y)
             scalar_values = Variable(scalar_values)
             scalar_values = scalar_values.view(1, -1)
+            occurrences = Variable(occurrences)
+            occurrences = occurrences.view(1, -1)
             # print(board)
             # print(player)
             self.nnet.eval()
-            pi, v = self.nnet(board, scalar_values)
+            pi, v = self.nnet(board, scalar_values, occurrences)
 
         #print('PREDICTION TIME TAKEN : {0:03f}'.format(time.time()-start))
         return torch.exp(pi).data.cpu().numpy()[0], v.data.cpu().numpy()[0]

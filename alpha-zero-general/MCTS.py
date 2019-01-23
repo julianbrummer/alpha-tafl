@@ -5,7 +5,7 @@ import random
 import numpy as np
 
 from tafl.TaflBoard import Player
-from tafl.TaflGame import MovementType
+from tafl.TaflGame import MovementType, action_conversion__index_to_explicit
 
 EPS = 1e-8
 
@@ -16,6 +16,7 @@ class MCTS():
 
     def __init__(self, game, white_nnet, black_nnet, args):
         self.game = game
+        self.size = game.getBoardSize()[0]
         self.white_nnet = white_nnet
         self.black_nnet = black_nnet
         self.args = args
@@ -113,9 +114,16 @@ class MCTS():
 
             if s not in self.Ps:
                 # leaf node
-                self.Ps[s], v = player_net(next_player).predict(canonicalBoard,
-                                        np.array([canonicalBoard.king_position[0], canonicalBoard.king_position[1]]))
                 valids = self.game.getValidMoves(canonicalBoard, next_player)
+
+                occurrences = np.zeros(self.size * self.size * self.size * 2)
+                for index, action in enumerate(valids):
+                    if action == 1 and index != self.size * self.size * self.size * 2:
+                        explicit = action_conversion__index_to_explicit(index, self.size)
+                        occurrences[index] = 1 if canonicalBoard.would_next_board_be_second_third(2, explicit) else 0
+
+                self.Ps[s], v = player_net(next_player).predict(canonicalBoard, np.array([canonicalBoard.king_position[0], canonicalBoard.king_position[1]]), occurrences)
+                # valids = self.game.getValidMoves(canonicalBoard, next_player)
                 self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
                 sum_Ps_s = np.sum(self.Ps[s])
                 if sum_Ps_s > 0:

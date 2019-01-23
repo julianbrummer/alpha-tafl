@@ -15,7 +15,8 @@ args = dotdict({
     'cpuct': 1,
 
     'checkpoint': './temp/',
-    'load_model': False,
+    'load_model': True,
+    'split_player_examples_into_episodes': False,
 
     'load_folder_file_white': ('./temp/', 'best_white.pth.tar'),
     'load_folder_file_black': ('./temp/', 'best_black.pth.tar'),

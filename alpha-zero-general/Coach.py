@@ -63,8 +63,8 @@ class Coach():
             sym = self.game.getSymmetries(canonicalBoard, pi, canonicalBoard.king_position)
 
             player_train_examples = trainExamples_white if self.curPlayer == Player.white else trainExamples_black
-            for b,p, scalar_values in sym:
-                player_train_examples.append([b, self.curPlayer, p, scalar_values])
+            for b,p, scalar_values, occurrences in sym:
+                player_train_examples.append([b, self.curPlayer, p, scalar_values, occurrences])
                 # trainExamples.append([b, self.curPlayer, p, scalar_values])
 
             action = np.random.choice(len(pi), p=pi)
@@ -80,8 +80,8 @@ class Coach():
             if r!=0:
                 # if board.outcome == Outcome.black:
                 #     print(" black wins")
-                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples_white], \
-                       [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples_black]
+                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3], x[4]) for x in trainExamples_white], \
+                       [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3], x[4]) for x in trainExamples_black]
 
     def learn(self):
         """
@@ -112,7 +112,10 @@ class Coach():
 
                 for eps in range(self.args.numEps):
                     self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)   # reset search tree
-                    white_examples, black_examples = self.executeEpisode()
+                    try:
+                        white_examples, black_examples = self.executeEpisode()
+                    except:
+                        continue
                     iterationTrainExamples_white += white_examples
                     iterationTrainExamples_black += black_examples
     
@@ -183,8 +186,8 @@ class Coach():
                 pwins_other_color = pwins_black
                 nwins_other_color = nwins_black
 
-            if pwins+nwins > 0 and float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold \
-                    and nwins_other_color >= pwins_other_color:
+            if pwins_color+nwins_color == 0 or float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold \
+                    or nwins_other_color < pwins_other_color:
                 print('REJECTING NEW MODEL')
                 if train_black:
                     self.black_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_black.pth.tar')
@@ -240,6 +243,4 @@ class Coach():
 
     def load_expert_examples(self):
         self.trainExamplesHistory_white, self.trainExamplesHistory_black  = read_data(self.args)
-        print(len(self.trainExamplesHistory_black))
         self.skipFirstSelfPlay = True
-
