@@ -116,13 +116,13 @@ class MCTS():
                 # leaf node
                 valids = self.game.getValidMoves(canonicalBoard, next_player)
 
-                occurrences = np.zeros(self.size * self.size * self.size * 2)
-                for index, action in enumerate(valids):
-                    if action == 1 and index != self.size * self.size * self.size * 2:
-                        explicit = action_conversion__index_to_explicit(index, self.size)
-                        occurrences[index] = 1 if canonicalBoard.would_next_board_be_second_third(2, explicit) else 0
+                # occurrences = np.zeros(self.size * self.size * self.size * 2)
+                # for index, action in enumerate(valids):
+                #     if action == 1 and index != self.size * self.size * self.size * 2:
+                #         explicit = action_conversion__index_to_explicit(index, self.size)
+                #        occurrences[index] = 1 if canonicalBoard.would_next_board_be_second_third(2, explicit) else 0
 
-                self.Ps[s], v = player_net(next_player).predict(canonicalBoard, np.array([canonicalBoard.king_position[0], canonicalBoard.king_position[1]]), occurrences)
+                self.Ps[s], v = player_net(next_player).predict(canonicalBoard, np.array([canonicalBoard.king_position[0], canonicalBoard.king_position[1]]))
                 # valids = self.game.getValidMoves(canonicalBoard, next_player)
                 self.Ps[s] = self.Ps[s] * valids  # masking invalid moves
                 sum_Ps_s = np.sum(self.Ps[s])

@@ -50,9 +50,6 @@ class Arena():
                 assert(self.display)
                 print("Turn ", str(it), "Player ", str(curPlayer))
                 self.display(board)
-            if self.replay:
-                # TODO: insert code for graphical output
-                pass
             action = players[curPlayer+1](self.game.getCanonicalForm(board, curPlayer), curPlayer)
 
             # valids = self.game.getValidMoves(self.game.getCanonicalForm(board, curPlayer),curPlayer)
@@ -67,6 +64,8 @@ class Arena():
             #    assert valids[action] > 0
             #    return None
             board.print_game_over_reason = False
+            if self.replay:
+                board.print_game_over_reason = True
             board, curPlayer = self.game.getNextState(board, curPlayer, action)
             board.print_game_over_reason = False
             actions.append(action)

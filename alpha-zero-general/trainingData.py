@@ -54,7 +54,7 @@ def read_data(args):
     trainExamples_white = []
     trainExamples_black = []
 
-    game = TaflGame(7)
+    game = TaflGame(7, args.prune)
 
     assert len(outcomes) == len(games)
 
@@ -119,8 +119,8 @@ def read_data(args):
 
             symmetries = generate_training_example(game, board, action, turn_player)
             player_train_examples = trainExamples_white if turn_player == Player.white else trainExamples_black
-            for b, p, scalar_values, occurrences in symmetries:
-                player_train_examples.append([b, p, scalar_values, occurrences])
+            for b, p, scalar_values in symmetries:
+                player_train_examples.append([b, p, scalar_values])
 
             board.do_action(action, turn_player)
             # print(board)
@@ -130,11 +130,11 @@ def read_data(args):
                                    + str(board.outcome) + ", actual: " + str(outcome_conversion_table[outcomes[i]]) \
                                    + "\n" + king_capture_check(board) + "\n example number:" + str(i)
 
-        training_data_white += [(x[0], x[1], board.outcome, x[2], x[3]) for x in trainExamples_white]
-        training_data_black += [(x[0], x[1], board.outcome, x[2], x[3]) for x in trainExamples_black]
+        training_data_white += [(x[0], x[1], board.outcome, x[2]) for x in trainExamples_white]
+        training_data_black += [(x[0], x[1], board.outcome, x[2]) for x in trainExamples_black]
 
         # split up into list format every "numEps" games
-        if args.split_player_examples_into_epochs and usable_games % args.numEps == 0:
+        if args.split_player_examples_into_episodes and usable_games % args.numEps == 0:
             training_data_white_list.append(training_data_white)
             training_data_black_list.append(training_data_black)
             training_data_white = deque([], maxlen=args.maxlenOfQueue)

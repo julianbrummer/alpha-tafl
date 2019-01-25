@@ -2,20 +2,20 @@ from tafl.pytorch.NNet import NNetWrapper as nn
 from Coach import Coach
 from tafl.TaflGame import TaflGame
 from utils import dotdict
-from trainingData import read_data
 
 args = dotdict({
     'numIters': 1000,
-    'numEps': 50,
+    'numEps': 100,
     'tempThreshold': 15,
-    'updateThreshold': 0.57,
+    'updateThreshold': 0.555,
     'maxlenOfQueue': 200000,
-    'numMCTSSims': 25,
-    'arenaCompare': 40,
+    'numMCTSSims': 50,
+    'arenaCompare': 60,
     'cpuct': 1,
+    'prune': True,
 
     'checkpoint': './temp/',
-    'load_model': True,
+    'load_model': False,
     'split_player_examples_into_episodes': False,
 
     'load_folder_file_white': ('./temp/', 'best_white.pth.tar'),
@@ -23,6 +23,7 @@ args = dotdict({
     'numItersForTrainExamplesHistory': 20,
 
     'train_black_first': True,
+    'skip_first_self_play': True,
     'train_other_network_threshold': 1,    # compared with (network that is currently trained wins)/(other network wins)
                                            # toggles the network being trained when threshold is reached
 
@@ -32,7 +33,7 @@ args = dotdict({
 
 if __name__=="__main__":
     #  g = OthelloGame(6)
-    g = TaflGame(7)
+    g = TaflGame(7, args.prune)
     white_nnet = nn(g)
     black_nnet = nn(g)
 

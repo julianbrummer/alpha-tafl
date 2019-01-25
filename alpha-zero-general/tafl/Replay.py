@@ -3,11 +3,10 @@ from pickle import Unpickler
 
 import Arena
 from tafl.TaflGame import TaflGame
+from tafl.rendering.render_utils import room_to_rgb
 
-
-filename = "../test_replay.taflreplay"
-wait_time = 10  # seconds between moves
-
+filename = "../arena_replays/arena_replay_020.taflreplay"
+wait_time = 1.5  # seconds between moves
 
 class ReplayAgent:
     def __init__(self, filename, wait_time):
@@ -15,15 +14,22 @@ class ReplayAgent:
             self.moves = Unpickler(f).load()
         self.turn_counter = -1
         self.wait_time = wait_time
+        self.viewer = None
 
     def play(self, board, player):
-        time.sleep(self.wait_time)
+        img = room_to_rgb(board, board.size)
+        from gym.envs.classic_control import rendering
+        if self.viewer is None:
+            self.viewer = rendering.SimpleImageViewer()
+        self.viewer.imshow(img)
+        # time.sleep(self.wait_time)
+        input()
         self.turn_counter += 1
         return self.moves[self.turn_counter]
 
 
 # this code is run
-g = TaflGame(7)
+g = TaflGame(7, False)
 replay = ReplayAgent(filename, wait_time).play
 arena = Arena.Arena(replay, replay, g, replay=True)
 arena.playGames(1, profile=False)

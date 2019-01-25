@@ -28,7 +28,6 @@ class Coach():
         # self.trainExamplesHistory = []  ###########
         self.trainExamplesHistory_white = []    # history of examples from args.numItersForTrainExamplesHistory latest iterations
         self.trainExamplesHistory_black = []    # history of examples from args.numItersForTrainExamplesHistory latest iterations
-        self.skipFirstSelfPlay = False # can be overriden in loadTrainExamples()
 
     def executeEpisode(self):
         """
@@ -63,8 +62,8 @@ class Coach():
             sym = self.game.getSymmetries(canonicalBoard, pi, canonicalBoard.king_position)
 
             player_train_examples = trainExamples_white if self.curPlayer == Player.white else trainExamples_black
-            for b,p, scalar_values, occurrences in sym:
-                player_train_examples.append([b, self.curPlayer, p, scalar_values, occurrences])
+            for b,p, scalar_values in sym:
+                player_train_examples.append([b, self.curPlayer, p, scalar_values])
                 # trainExamples.append([b, self.curPlayer, p, scalar_values])
 
             action = np.random.choice(len(pi), p=pi)
@@ -80,8 +79,8 @@ class Coach():
             if r!=0:
                 # if board.outcome == Outcome.black:
                 #     print(" black wins")
-                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3], x[4]) for x in trainExamples_white], \
-                       [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3], x[4]) for x in trainExamples_black]
+                return [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples_white], \
+                       [(x[0],x[2],r*((-1)**(x[1]!=self.curPlayer)), x[3]) for x in trainExamples_black]
 
     def learn(self):
         """
@@ -98,7 +97,7 @@ class Coach():
             # bookkeeping
             print('------ITER ' + str(i) + '------')
             # examples of the iteration
-            if not self.skipFirstSelfPlay or i>1:
+            if not self.args.skip_first_self_play or i>1:
                 iterationTrainExamples_white = deque([], maxlen=self.args.maxlenOfQueue)
                 iterationTrainExamples_black = deque([], maxlen=self.args.maxlenOfQueue)
     
@@ -112,10 +111,11 @@ class Coach():
 
                 for eps in range(self.args.numEps):
                     self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)   # reset search tree
-                    try:
-                        white_examples, black_examples = self.executeEpisode()
-                    except:
-                        continue
+                    #try:
+                    white_examples, black_examples = self.executeEpisode()
+                    #except:
+                    #    print("Coach.learn(): exception in MCTS. Continuing with next iteration")
+                    #    continue
                     iterationTrainExamples_white += white_examples
                     iterationTrainExamples_black += black_examples
     
@@ -172,6 +172,7 @@ class Coach():
                           self.game)
             pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black \
                 = arena.playGames(self.args.arenaCompare, self.args.profile_arena)
+            self.game.prune_prob += 0.01
 
             print('NEW/PREV WINS (white, black) : (%d,%d) / (%d,%d) ; DRAWS : %d' % (nwins_white, nwins_black, pwins_white, pwins_black, draws))
 
@@ -199,14 +200,16 @@ class Coach():
                     # self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
                     self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
                     if nwins_white == 0 or nwins_black / nwins_white >= self.args.train_other_network_threshold:
-                        print("training white neural net next")
                         train_black = False
+                    print("training white neural net next")
+                    train_black = False
                 else:
                     # self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
                     self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_white.pth.tar')
                     if nwins_black == 0 or nwins_white / nwins_black > self.args.train_other_network_threshold:
-                        print("training black neural net next")
                         train_black = True
+                    print("training black neural net next")
+                    train_black = True
 
     def getCheckpointFile(self, iteration, player=None):
         return 'checkpoint_' + ('white_' if player == Player.white else 'black_' if player == Player.black else '') + str(iteration) + '.pth.tar'
@@ -239,8 +242,6 @@ class Coach():
             with open(filename_black, "rb") as f:
                 self.trainExamplesHistory_black = Unpickler(f).load()
             # examples based on the model were already collected (loaded)
-            self.skipFirstSelfPlay = True
 
     def load_expert_examples(self):
-        self.trainExamplesHistory_white, self.trainExamplesHistory_black  = read_data(self.args)
-        self.skipFirstSelfPlay = True
+        self.trainExamplesHistory_white, self.trainExamplesHistory_black = read_data(self.args)

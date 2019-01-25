@@ -1,8 +1,6 @@
 import numpy as np
 from enum import IntEnum
 
-from tafl.RuleConfig import MAX_NUMBER_OF_TURNS, MAX_NUMBER_OF_TURNS_WITHOUT_CAPTURE
-
 
 class Player(IntEnum):
     white = -1
@@ -45,10 +43,6 @@ class TaflBoard:
         self.white_pieces = 0
         self.black_pieces = 0
 
-        # turn counts for draw condition
-        self.turn_count = 0
-        self.turns_without_capture_count = 0
-
         # Whether this board prints moves and captures to the console. This shouldn't
         # happen when the game tree is searched because during that time only
         # possibilities are considered, but no actual move is made. Turn this off for
@@ -57,15 +51,6 @@ class TaflBoard:
 
         self.print_game_over_reason = False
 
-        self.save_game = False
-
-        # # for reverting actions
-        # self.board_stack = []
-        # self.king_position_stack = []
-        # self.action_stack = []
-        # self.turns_without_capture_count_stack = []
-
-        # self.test_board()
         self.reset_board()
 
     def reset_board(self):
@@ -142,8 +127,6 @@ class TaflBoard:
 
         self.board_states_dict = {self.board.tobytes(): 1}
         self.outcome = Outcome.ongoing
-        self.turn_count = 0
-        self.turns_without_capture_count = 0
 
     #  Checks whether "player" can do action "move".
     #  move = ((fromX,fromY),(toX,toY))
@@ -212,25 +195,8 @@ class TaflBoard:
         if self.outcome != Outcome.ongoing:
             return
 
-        if self.save_game:
-            print("File opened")
-            url = __file__[:-28]
-            game_filename = url + '/' + 'game.txt'
-            file = open(game_filename,"a+")
-            entry = ""
-            entry += str(move) + " \n"
-
         (from_x, from_y), (to_x, to_y) = move
         if self.can_do_action(move, player):
-            # increase turn counts
-            # self.turn_count += 1
-            # self.turns_without_capture_count_stack.append(self.turns_without_capture_count)
-            # self.turns_without_capture_count += 1
-            # self.action_stack.append((move, self.board[from_x, from_y]))
-            # board_bytes = self.board.tobytes()
-            # self.board_stack.append(board_bytes)
-            # self.king_position_stack.append(self.king_position)
-
             if self.print_to_console:
                 print(str(player) + " moves a piece from " + str((from_x, from_y)) + " to " + str((to_x, to_y)))
             # if king is moving: update king position and check if he reached a corner
@@ -270,19 +236,6 @@ class TaflBoard:
                             print("Black forced the same board state for third time. White wins!")
             else:
                 self.board_states_dict[board_bytes] = 1
-
-
-            # # check if draw conditions by turn count are met does not change if max_number_of_turns is  infty
-            # if self.turn_count == MAX_NUMBER_OF_TURNS and self.outcome == Outcome.ongoing:
-            #     self.outcome = Outcome.draw
-            # if self.turns_without_capture_count == MAX_NUMBER_OF_TURNS_WITHOUT_CAPTURE \
-            #         and self.outcome == Outcome.ongoing:
-            #     self.outcome = Outcome.draw
-
-            if self.save_game:
-                if Outcome != Outcome.ongoing:
-                    file.write(entry)
-                    file.close()
             return captured_pieces
         else:
             raise Exception(str(Player(player)) + " tried to make move " + str(move) + ", but that move is not possible. "
@@ -299,7 +252,7 @@ class TaflBoard:
         # this way is necessary because capturing the king works differently and is done further below
         opponent_pawn_tile_state = TileState.white if turn_player == Player.black else TileState.black
 
-        # check capture right
+        # check capture bottom
         if self.board[x + 1, y] & opponent_pawn_tile_state != 0 \
                 and self.board[x + 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
             self.board[x + 1, y] = TileState.empty
@@ -307,7 +260,7 @@ class TaflBoard:
             if self.print_to_console:
                 print(str(turn_player) + " captures piece at " + str((x + 1, y)))
 
-        # check capture left
+        # check capture top
         if self.board[x - 1, y] & opponent_pawn_tile_state != 0 \
                 and self.board[x - 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
             self.board[x - 1, y] = TileState.empty
@@ -315,7 +268,7 @@ class TaflBoard:
             if self.print_to_console:
                 print(str(turn_player) + " captures piece at " + str((x - 1, y)))
 
-        # check capture bottom
+        # check capture right
         if self.board[x, y + 1] & opponent_pawn_tile_state != 0 \
                 and self.board[x, y + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
             self.board[x, y + 1] = TileState.empty
@@ -323,7 +276,7 @@ class TaflBoard:
             if self.print_to_console:
                 print(str(turn_player) + " captures piece at " + str((x, y + 1)))
 
-        # check capture top
+        # check capture left
         if self.board[x, y - 1] & opponent_pawn_tile_state != 0 \
                 and self.board[x, y - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
             self.board[x, y - 1] = TileState.empty
@@ -468,56 +421,196 @@ class TaflBoard:
         self.board[move_to] = previous_to
         return result
 
-    # # reverts the last action and returns the board state to the state before
-    # def undo_last_action(self):
-    #     if len(self.board_stack) > 0:
-    #         if self.board_states_dict[self.board.tobytes()] == 1:
-    #             self.board_states_dict.pop(self.board.tobytes())
-    #         else:
-    #             self.board_states_dict[self.board.tobytes()] -= 1
-    #         self.board = np.frombuffer(self.board_stack.pop(), dtype=np.int32).reshape((self.size + 2, self.size + 2))
-    #         self.board.setflags(write=1)
-    #         self.king_position = self.king_position_stack.pop()
-    #         self.turns_without_capture_count = self.turns_without_capture_count_stack.pop()
-    #         self.outcome = Outcome.ongoing
-    #         self.turn_count -= 1
-    #         self.update_board_states()
-    #     else:
-    #         raise Exception("undo_last_action() failed because there is no action left to revert.")
-        # if len(self.action_stack) > 0:
-        #     # update board_states_dict
-        #     if self.board.tobytes() not in self.board_states_dict:
-        #         print(self.board.tobytes())
-        #         print(self.board_states_dict)
-        #     if self.board_states_dict[self.board.tobytes()] == 1:
-        #         self.board_states_dict.pop(self.board.tobytes())
-        #     else:
-        #         self.board_states_dict[self.board.tobytes()] -= 1
-        #
-        #     # revert the movement of the piece
-        #     (from_position, to_position), tile_state = self.action_stack.pop()
-        #     self.board[to_position] = TileState.empty
-        #     self.board[from_position] = tile_state
-        #     # update king_position if that action was the king being moved
-        #     if self.king_position == to_position:
-        #         self.king_position = from_position
-        #
-        #     # revert captures
-        #     captured_pieces = self.capture_stack.pop()
-        #     other_player_tile_state = TileState.white if tile_state == TileState.black else TileState.black
-        #     for position in captured_pieces:
-        #         self.board[position] = other_player_tile_state if self.king_position != position else TileState.king
-        #     if tile_state == TileState.black:
-        #         self.white_pieces += len(captured_pieces)
-        #     else:
-        #         self.black_pieces += len(captured_pieces)
-        #
-        #     self.outcome = Outcome.ongoing
-        #     self.turn_count -= 1
-        #     self.turns_without_capture_count = self.turns_without_capture_count_stack.pop()
-        #     self.update_board_states()
-        # else:
-        #     raise Exception("undo_last_action() failed because there is no action left to revert.")
+    # returns a winning move for white in the sense that either the move itself or the next move wins the game for white
+    # checks made in this function:
+    #   1. king to corner
+    #   2. king next to corner
+    #   3. king to empty edge
+    def get_king_escape_move(self):
+        king_moves = self.get_valid_actions_for_piece(self.king_position)
+        king_x, king_y = self.king_position
+
+        # check if king is on an edge
+        if king_x == 1 or king_x == self.size or king_y == 1 or king_y == self.size:
+            # moves to corner
+            if (self.king_position, (1, 1)) in king_moves:
+                return self.king_position, (1, 1)
+            if (self.king_position, (1, self.size)) in king_moves:
+                return self.king_position, (1, self.size)
+            if (self.king_position, (self.size, 1)) in king_moves:
+                return self.king_position, (self.size, 1)
+            if (self.king_position, (self.size, self.size)) in king_moves:
+                return self.king_position, (self.size, self.size)
+
+        # moves next to corner
+        if king_x in [1, 2, self.size - 1, self.size] or king_y in [1, 2, self.size - 1, self.size]:
+            if (self.king_position, (1, king_y)) in king_moves:
+                return self.king_position, (1, king_y)
+            if (self.king_position, (king_x, 1)) in king_moves:
+                return self.king_position, (king_x, 1)
+            if (self.king_position, (self.size, king_y)) in king_moves:
+                return self.king_position, (self.size, king_y)
+            if (self.king_position, (king_x, self.size)) in king_moves:
+                return self.king_position, (king_x, self.size)
+
+        # moves to empty edge
+        # top
+        if (self.king_position, (1, king_y)) in king_moves \
+                and sum(self.board[1,3:self.size - 1]) == TileState.empty:
+            return self.king_position, (1, king_y)
+        # bottom
+        if (self.king_position, (self.size, king_y)) in king_moves \
+                and sum(self.board[self.size,3:self.size - 1]) == TileState.empty:
+            return self.king_position, (self.size, king_y)
+        # left
+        if (self.king_position, (king_x, 1)) in king_moves \
+                and sum(self.board[3:self.size - 1, 1]) == TileState.empty:
+            return self.king_position, (king_x, 1)
+        # right
+        if (self.king_position, (king_x, self.size)) in king_moves \
+                and sum(self.board[3:self.size - 1, self.size]) == TileState.empty:
+            return self.king_position, (king_x, self.size)
+
+        # all the interesting moves are not dependent on the move the king makes
+        black_move_end_points = [move_to for move_from, move_to in self.get_valid_actions(Player.black)]
+
+        # moves to an edge where the king can escape during the next turn and no black piece can block it despite the
+        # edge not being empty
+        # top -> right
+        if (self.king_position, (1, king_y)) in king_moves \
+                and sum(self.board[1, king_y + 1:self.size]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(1, y) for y in range(king_y + 1, self.size)]] == []:
+            return self.king_position, (1, king_y)
+        # top -> left
+        if (self.king_position, (1, king_y)) in king_moves \
+                and sum(self.board[1, king_y - 1:1]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(1, y) for y in range(king_y - 1, 1)]] == []:
+            return self.king_position, (1, king_y)
+        # bottom -> right
+        if (self.king_position, (self.size, king_y)) in king_moves \
+                and sum(self.board[self.size, king_y + 1:self.size]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(self.size, y) for y in range(king_y + 1, self.size)]] == []:
+            return self.king_position, (self.size, king_y)
+        # bottom -> left
+        if (self.king_position, (self.size, king_y)) in king_moves \
+                and sum(self.board[self.size, king_y - 1:1]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(self.size, y) for y in range(king_y - 1, 1)]] == []:
+            return self.king_position, (self.size, king_y)
+        # left -> top
+        if (self.king_position, (king_x, 1)) in king_moves \
+                and sum(self.board[king_x - 1:1, 1]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(x, 1) for x in range(king_x - 1, 1)]] ==[]:
+            return self.king_position, (king_x, 1)
+        # left -> bottom
+        if (self.king_position, (king_x, 1)) in king_moves \
+                and sum(self.board[king_x + 1:self.size, 1]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(x, 1) for x in range(king_x + 1, self.size)]] == []:
+            return self.king_position, (king_x, 1)
+        # right -> top
+        if (self.king_position, (king_x, self.size)) in king_moves \
+                and sum(self.board[king_x - 1:1, self.size]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(x, self.size) for x in range(king_x - 1, 1)]] == []:
+            return self.king_position, (king_x, self.size)
+        # right -> bottom
+        if (self.king_position, (king_x, self.size)) in king_moves \
+                and sum(self.board[king_x + 1:self.size, self.size]) == TileState.empty \
+                and [to_position for to_position in black_move_end_points
+                     if to_position in [(x, self.size) for x in range(king_x + 1, self.size)]] == []:
+            return self.king_position, (king_x, self.size)
+        return None
+
+    # returns a move that captures the king if possible, else returns None
+    # valid_actions is passed as an arguments so that it doesn't need to be calculated again
+    def get_king_capture_move(self, valid_actions):
+        king_x, king_y = self.king_position
+        king_capture_positions = []
+
+        # check if king is on or next to throne
+        if (self.board[king_x, king_y] | self.board[king_x + 1, king_y] | self.board[king_x - 1, king_y] |
+                self.board[king_x, king_y + 1] | self.board[king_x, king_y - 1]) & TileState.throne != 0:
+            for around_king_position in [(king_x + 1, king_y), (king_x - 1, king_y), (king_x, king_y + 1), (king_x, king_y - 1)]:
+                if self.board[around_king_position] & (TileState.black | TileState.throne) == 0:
+                    if not king_capture_positions:
+                        king_capture_positions = [around_king_position]
+                    else:
+                        # at least two spots are empty, so no capture possible
+                        return None
+        else:
+            if self.board[king_x + 1, king_y] == TileState.black and self.board[king_x - 1, king_y] == TileState.empty:
+                king_capture_positions.append((king_x - 1, king_y))
+            elif self.board[king_x - 1, king_y] == TileState.black and self.board[king_x + 1, king_y] == TileState.empty:
+                king_capture_positions.append((king_x + 1, king_y))
+            if self.board[king_x, king_y + 1] == TileState.black and self.board[king_x, king_y - 1] == TileState.empty:
+                king_capture_positions.append((king_x, king_y - 1))
+            elif self.board[king_x, king_y - 1] == TileState.black and self.board[king_x, king_y + 1] == TileState.empty:
+                king_capture_positions.append((king_x, king_y + 1))
+
+        if not king_capture_positions:
+            for action in valid_actions:
+                if action[1] in king_capture_positions:
+                    return action
+        return None
+
+    # checks whether the next board after the given move would lead to a board where the opponent of the turn player
+    # could win the game
+    def would_next_board_lead_to_opponent_winning(self, move, turn_player):
+        move_from, move_to = move
+        x, y = move_to
+        previous_from = self.board[move_from]
+        previous_to = self.board[x, y]
+
+        # see regular move method for a short explanation
+        self.board[move_to] = (self.board[move_to] & TileState.throne) | \
+                              (self.board[move_from] & (TileState.white | TileState.black | TileState.king))
+        self.board[move_from] = self.board[move_from] & \
+                                ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
+
+        captured_pieces = []
+        own_tile_state = TileState.white | TileState.king if turn_player == Player.white else TileState.black
+        # TileState.white for Player.black, TileState.black for Player.white
+        # this way is necessary because capturing the king works differently and is done further below
+        opponent_pawn_tile_state = TileState.black if turn_player == Player.black else TileState.white
+
+        # check capture bottom
+        if self.board[x + 1, y] & opponent_pawn_tile_state != 0 \
+                and self.board[x + 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            self.board[x + 1, y] = TileState.empty
+            captured_pieces.append((x + 1, y))
+
+        # check capture top
+        if self.board[x - 1, y] & opponent_pawn_tile_state != 0 \
+                and self.board[x - 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            self.board[x - 1, y] = TileState.empty
+            captured_pieces.append((x - 1, y))
+
+        # check capture right
+        if self.board[x, y + 1] & opponent_pawn_tile_state != 0 \
+                and self.board[x, y + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            self.board[x, y + 1] = TileState.empty
+            captured_pieces.append((x, y + 1))
+
+        # check capture left
+        if self.board[x, y - 1] & opponent_pawn_tile_state != 0 \
+                and self.board[x, y - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+            self.board[x, y - 1] = TileState.empty
+            captured_pieces.append((x, y - 1))
+
+        if turn_player == Player.black:
+            result = self.get_king_capture_move(self.get_valid_actions(Player.black)) is None
+        else:
+            result = self.get_king_escape_move() is None
+        for position in captured_pieces:
+            self.board[position] = opponent_pawn_tile_state
+        self.board[move_from] = previous_from
+        self.board[move_to] = previous_to
+        return result
 
     def __str__(self):
         return np.array_str(self.board) + str(self.board_states_dict[self.board.tobytes()])
