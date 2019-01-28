@@ -5,7 +5,8 @@ import Arena
 from tafl.TaflGame import TaflGame
 from tafl.rendering.render_utils import room_to_rgb
 
-filename = "../arena_replays/arena_replay_020.taflreplay"
+filename = "../demo_replays/demo_replay_01.taflreplay"
+# filename = "../demo_replays/demo_replay_02.taflreplay"
 wait_time = 1.5  # seconds between moves
 
 class ReplayAgent:
@@ -22,8 +23,8 @@ class ReplayAgent:
         if self.viewer is None:
             self.viewer = rendering.SimpleImageViewer()
         self.viewer.imshow(img)
-        # time.sleep(self.wait_time)
-        input()
+        time.sleep(self.wait_time)
+        # input()
         self.turn_counter += 1
         return self.moves[self.turn_counter]
 

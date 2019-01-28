@@ -13,16 +13,18 @@ args = dotdict({
     'arenaCompare': 60,
     'cpuct': 1,
     'prune': True,
+    'prune_starting_prob': 0.22,
+    'prune_prob_gain_per_iteration': 0.010,
 
     'checkpoint': './temp/',
-    'load_model': False,
+    'load_model': True,
     'split_player_examples_into_episodes': False,
 
     'load_folder_file_white': ('./temp/', 'best_white.pth.tar'),
     'load_folder_file_black': ('./temp/', 'best_black.pth.tar'),
-    'numItersForTrainExamplesHistory': 20,
+    'numItersForTrainExamplesHistory': 25,
 
-    'train_black_first': True,
+    'train_black_first': False,
     'skip_first_self_play': True,
     'train_other_network_threshold': 1,    # compared with (network that is currently trained wins)/(other network wins)
                                            # toggles the network being trained when threshold is reached

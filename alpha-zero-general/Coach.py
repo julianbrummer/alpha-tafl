@@ -172,7 +172,6 @@ class Coach():
                           self.game)
             pwins, nwins, draws, pwins_white, pwins_black, nwins_white, nwins_black \
                 = arena.playGames(self.args.arenaCompare, self.args.profile_arena)
-            self.game.prune_prob += 0.01
 
             print('NEW/PREV WINS (white, black) : (%d,%d) / (%d,%d) ; DRAWS : %d' % (nwins_white, nwins_black, pwins_white, pwins_black, draws))
 
@@ -199,17 +198,19 @@ class Coach():
                 if train_black:
                     # self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
                     self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
-                    if nwins_white == 0 or nwins_black / nwins_white >= self.args.train_other_network_threshold:
-                        train_black = False
+                    # if nwins_white == 0 or nwins_black / nwins_white >= self.args.train_other_network_threshold:
+                    #     train_black = False
                     print("training white neural net next")
                     train_black = False
                 else:
                     # self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
                     self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_white.pth.tar')
-                    if nwins_black == 0 or nwins_white / nwins_black > self.args.train_other_network_threshold:
-                        train_black = True
+                    # if nwins_black == 0 or nwins_white / nwins_black > self.args.train_other_network_threshold:
+                    #     train_black = True
                     print("training black neural net next")
                     train_black = True
+            self.game.prune_prob += self.args.prune_prob_gain_per_iteration
+            print("increasing prune probability to " + str(self.game.prune_prob))
 
     def getCheckpointFile(self, iteration, player=None):
         return 'checkpoint_' + ('white_' if player == Player.white else 'black_' if player == Player.black else '') + str(iteration) + '.pth.tar'
