@@ -252,9 +252,10 @@ class TaflBoard:
         # this way is necessary because capturing the king works differently and is done further below
         opponent_pawn_tile_state = TileState.white if turn_player == Player.black else TileState.black
 
+        throne_check = TileState.empty if self.board[self.king_position] & TileState.throne != 0 else TileState.throne
         # check capture bottom
         if self.board[x + 1, y] & opponent_pawn_tile_state != 0 \
-                and self.board[x + 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x + 2, y] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x + 1, y] = TileState.empty
             captured_pieces.append((x + 1, y))
             if self.print_to_console:
@@ -262,7 +263,7 @@ class TaflBoard:
 
         # check capture top
         if self.board[x - 1, y] & opponent_pawn_tile_state != 0 \
-                and self.board[x - 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x - 2, y] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x - 1, y] = TileState.empty
             captured_pieces.append((x - 1, y))
             if self.print_to_console:
@@ -270,7 +271,7 @@ class TaflBoard:
 
         # check capture right
         if self.board[x, y + 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x, y + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x, y + 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x, y + 1] = TileState.empty
             captured_pieces.append((x, y + 1))
             if self.print_to_console:
@@ -278,7 +279,7 @@ class TaflBoard:
 
         # check capture left
         if self.board[x, y - 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x, y - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x, y - 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x, y - 1] = TileState.empty
             captured_pieces.append((x, y - 1))
             if self.print_to_console:
@@ -343,21 +344,22 @@ class TaflBoard:
         # this way is necessary because capturing the king works differently and is done further below
         opponent_pawn_tile_state = own_tile_state ^ (TileState.black | TileState.white)
 
+        throne_check = TileState.empty if self.board[self.king_position] & TileState.throne != 0 else TileState.throne
         # check capture right
         if self.board[x_to + 1, y_to] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to + 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to + 2, y_to] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
         # check capture left
         if self.board[x_to - 1, y_to] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to - 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to - 2, y_to] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
         # check capture bottom
         if self.board[x_to, y_to + 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to, y_to + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to, y_to + 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
         # check capture top
         if self.board[x_to, y_to - 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to, y_to - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to, y_to - 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
 
         # if nothing is captured and the current board state has been seen two times already,
@@ -373,14 +375,13 @@ class TaflBoard:
                                 ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
         result = False
         for action in self.get_valid_actions(-1 * turn_player):
-            result = result or self.would_next_board_be_second_third(3, action)
+            result = result or self.would_next_board_be_third(action)
         self.board[move_from] = previous_from
         self.board[move_to] = previous_to
         return result
 
-    # checks whether the next move would lead to a board state that has occurred one/two times already
-    # (time=2 for check if the next board would be the second occurrence, time=3 for third occurrence)
-    def would_next_board_be_second_third(self, time, action):
+    # checks whether the next move would lead to a board state that has occurred two times already
+    def would_next_board_be_third(self, action):
         move_from, move_to = action
         x_to, y_to = move_to
         previous_from = self.board[move_from]
@@ -392,21 +393,22 @@ class TaflBoard:
         # this way is necessary because capturing the king works differently and is done further below
         opponent_pawn_tile_state = own_tile_state ^ (TileState.black | TileState.white)
 
+        throne_check = TileState.empty if self.board[self.king_position] & TileState.throne != 0 else TileState.throne
         # check capture right
         if self.board[x_to + 1, y_to] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to + 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to + 2, y_to] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
         # check capture left
         if self.board[x_to - 1, y_to] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to - 2, y_to] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to - 2, y_to] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
         # check capture bottom
         if self.board[x_to, y_to + 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to, y_to + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to, y_to + 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
         # check capture top
         if self.board[x_to, y_to - 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x_to, y_to - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x_to, y_to - 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             return False
 
         # see regular move method for a short explanation
@@ -416,7 +418,7 @@ class TaflBoard:
                                      ~(TileState.white | TileState.black | TileState.king)  # remove piece from tile
 
         board_bytes = self.board.tobytes()
-        result = board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == time - 1
+        result = board_bytes in self.board_states_dict and self.board_states_dict[board_bytes] == 2
         self.board[move_from] = previous_from
         self.board[move_to] = previous_to
         return result
@@ -426,6 +428,8 @@ class TaflBoard:
     #   1. king to corner
     #   2. king next to corner
     #   3. king to empty edge
+    #   4. king to (2,2) or symmetrical equivalent when there is no piece to capture the king and no piece on (2,1) and
+    #       (1,2)
     def get_king_escape_move(self):
         king_moves = self.get_valid_actions_for_piece(self.king_position)
         king_x, king_y = self.king_position
@@ -504,7 +508,7 @@ class TaflBoard:
         if (self.king_position, (king_x, 1)) in king_moves \
                 and sum(self.board[king_x - 1:1, 1]) == TileState.empty \
                 and [to_position for to_position in black_move_end_points
-                     if to_position in [(x, 1) for x in range(king_x - 1, 1)]] ==[]:
+                     if to_position in [(x, 1) for x in range(king_x - 1, 1)]] == []:
             return self.king_position, (king_x, 1)
         # left -> bottom
         if (self.king_position, (king_x, 1)) in king_moves \
@@ -524,6 +528,34 @@ class TaflBoard:
                 and [to_position for to_position in black_move_end_points
                      if to_position in [(x, self.size) for x in range(king_x + 1, self.size)]] == []:
             return self.king_position, (king_x, self.size)
+
+        # moves to (2,2) and their symmetries, if there is no piece on (2,1) and (1,2) and no black piece that can
+        # capture the king
+        no_black_top = np.bitwise_or.reduce(self.board[1, 3: self.size - 1]) & TileState.black == TileState.empty
+        no_black_bottom = np.bitwise_or.reduce(self.board[self.size, 3: self.size - 1]) & TileState.black == TileState.empty
+        no_black_left = np.bitwise_or.reduce(self.board[3: self.size - 1, 1]) & TileState.black == TileState.empty
+        no_black_right = np.bitwise_or.reduce(self.board[3: self.size - 1, self.size]) & TileState.black == TileState.empty
+        if (self.king_position, (2, 2)) in king_moves \
+                and self.board[(1, 2)] | self.board[(2, 1)] == TileState.empty \
+                and (no_black_top or self.board[(3, 2)] != TileState.black) \
+                and (no_black_left or self.board[(2, 3)] != TileState.black):
+            return self.king_position, (2, 2)
+        if (self.king_position, (self.size - 1, 2)) in king_moves \
+                and self.board[(self.size, 2)] | self.board[(self.size - 1, 1)] == TileState.empty \
+                and (no_black_bottom or self.board[(self.size - 2, 2)] != TileState.black) \
+                and (no_black_left or self.board[(self.size - 1, 3)] != TileState.black):
+            return self.king_position, (self.size - 1, 2)
+        if (self.king_position, (2, self.size - 1)) in king_moves \
+                and self.board[(1, self.size - 1)] | self.board[(2, self.size)] == TileState.empty \
+                and (no_black_top or self.board[(2, self.size - 2)] != TileState.black) \
+                and (no_black_right or self.board[(3, self.size - 1)] != TileState.black):
+            return self.king_position, (2, self.size - 1)
+        if (self.king_position, (self.size - 1, self.size - 1)) in king_moves \
+                and self.board[(self.size, self.size - 1)] | self.board[(self.size - 1, self.size)] == TileState.empty \
+                and (no_black_bottom or self.board[(self.size - 2, self.size - 1)] != TileState.black) \
+                and (no_black_right or self.board[(self.size - 1, self.size - 2)] != TileState.black):
+            return self.king_position, (self.size - 1, self.size - 1)
+
         return None
 
     # returns a move that captures the king if possible, else returns None
@@ -578,27 +610,28 @@ class TaflBoard:
         # this way is necessary because capturing the king works differently and is done further below
         opponent_pawn_tile_state = TileState.black if turn_player == Player.black else TileState.white
 
+        throne_check = TileState.empty if self.board[self.king_position] & TileState.throne != 0 else TileState.throne
         # check capture bottom
         if self.board[x + 1, y] & opponent_pawn_tile_state != 0 \
-                and self.board[x + 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x + 2, y] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x + 1, y] = TileState.empty
             captured_pieces.append((x + 1, y))
 
         # check capture top
         if self.board[x - 1, y] & opponent_pawn_tile_state != 0 \
-                and self.board[x - 2, y] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x - 2, y] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x - 1, y] = TileState.empty
             captured_pieces.append((x - 1, y))
 
         # check capture right
         if self.board[x, y + 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x, y + 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x, y + 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x, y + 1] = TileState.empty
             captured_pieces.append((x, y + 1))
 
         # check capture left
         if self.board[x, y - 1] & opponent_pawn_tile_state != 0 \
-                and self.board[x, y - 2] & (own_tile_state | TileState.corner | TileState.throne) != 0:
+                and self.board[x, y - 2] & (own_tile_state | TileState.corner | throne_check) != 0:
             self.board[x, y - 1] = TileState.empty
             captured_pieces.append((x, y - 1))
 

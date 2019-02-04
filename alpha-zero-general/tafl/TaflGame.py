@@ -99,19 +99,21 @@ class TaflGame(Game):
             # preferences:
             #   1. king to corner
             #   2. king next to corner or king to empty side
-            #   3. force same board state for the third time
-            # 	4. prevent king capture
+            #   3. go to (2,2) or symmetrical equivalents when king can't be captured and there is no piece on
+            #       (2,1) or (1,2)
+            #   4. force same board state for the third time
+            # 	5. prevent king capture
             if player == Player.white:
-                # 1. and 2.
+                # 1., 2. and 3.
                 winning_move = board.get_king_escape_move()
                 if winning_move is None:
                     move_set = board.get_valid_actions(player)
-                    # 3.
+                    # 4.
                     for action in move_set:
-                        if board.would_next_board_be_second_third(3, action):
+                        if board.would_next_board_be_third(action):
                             winning_move = action
                             break
-                    #4.
+                    # 5.
                     if winning_move is None:
                         for action in move_set:
                             if not board.would_next_board_lead_to_opponent_winning(action, Player.white):
@@ -122,17 +124,19 @@ class TaflGame(Game):
             #   2. force same board state for the third time
             # 	3. prevent king to corner
             # 	4. prevent king next to corner and prevent king to empty side
+            #   5. prevent king going to (2,2) or symmetrical equivalents when king can't be captured and there is no
+            #       piece on  (2,1) or (1,2)
             else:
                 move_set = board.get_valid_actions(player)
-                #1.
+                # 1.
                 winning_move = board.get_king_capture_move(move_set)
                 if winning_move is None:
                     # 2.
                     for action in move_set:
-                        if board.would_next_board_be_second_third(3, action):
+                        if board.would_next_board_be_third(action):
                             winning_move = action
                             break
-                    # 3. and 4.
+                    # 3., 4. and 5.
                     if winning_move is None:
                         for action in move_set:
                             if not board.would_next_board_lead_to_opponent_winning(action, Player.black):
@@ -159,7 +163,7 @@ class TaflGame(Game):
             no_immediate_loss_possible = False
             move_set = board.get_valid_actions(player)
             for action in move_set:
-                if board.would_next_board_be_second_third(3, action):
+                if board.would_next_board_be_third(action):
                     array = np.zeros(self.getActionSize())
                     index = action_conversion__explicit_to_index(action, self.size)
                     assert action_conversion__index_to_explicit(index, self.size) == action

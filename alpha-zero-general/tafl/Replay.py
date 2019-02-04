@@ -5,7 +5,8 @@ import Arena
 from tafl.TaflGame import TaflGame
 from tafl.rendering.render_utils import room_to_rgb
 
-filename = "../demo_replays/demo_replay_01.taflreplay"
+filename = "../arena_replays/arena_replay_001.taflreplay"
+# filename = "../demo_replays/demo_replay_01.taflreplay"
 # filename = "../demo_replays/demo_replay_02.taflreplay"
 wait_time = 1.5  # seconds between moves
 

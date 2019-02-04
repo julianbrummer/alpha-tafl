@@ -1,5 +1,8 @@
 import cProfile
+import copy
 from collections import deque
+from multiprocessing.pool import Pool
+
 from Arena import Arena
 from MCTS import MCTS
 import numpy as np
@@ -55,16 +58,19 @@ class Coach():
         while True:
             episodeStep += 1
             # print("turn " + str(episodeStep))
-            canonicalBoard = self.game.getCanonicalForm(board,self.curPlayer)
+            canonicalBoard = self.game.getCanonicalForm(board, self.curPlayer)
             temp = int(episodeStep < self.args.tempThreshold)
 
-            pi = self.mcts.getActionProb(canonicalBoard, self.curPlayer, temp=temp)
+            try:
+                pi = self.mcts.getActionProb(canonicalBoard, self.curPlayer, temp=temp)
+            except ZeroDivisionError:
+                print("ZeroDivisionError while building training example. continue with next iteration")
+                return [], []
             sym = self.game.getSymmetries(canonicalBoard, pi, canonicalBoard.king_position)
 
             player_train_examples = trainExamples_white if self.curPlayer == Player.white else trainExamples_black
             for b,p, scalar_values in sym:
                 player_train_examples.append([b, self.curPlayer, p, scalar_values])
-                # trainExamples.append([b, self.curPlayer, p, scalar_values])
 
             action = np.random.choice(len(pi), p=pi)
             if action == 0:
@@ -91,6 +97,7 @@ class Coach():
         only if it wins >= updateThreshold fraction of games.
         """
 
+        self.game.prune_prob = self.args.prune_starting_prob
         train_black = self.args.train_black_first
 
         for i in range(1, self.args.numIters+1):
@@ -111,18 +118,16 @@ class Coach():
 
                 for eps in range(self.args.numEps):
                     self.mcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)   # reset search tree
-                    #try:
+
                     white_examples, black_examples = self.executeEpisode()
-                    #except:
-                    #    print("Coach.learn(): exception in MCTS. Continuing with next iteration")
-                    #    continue
+
                     iterationTrainExamples_white += white_examples
                     iterationTrainExamples_black += black_examples
-    
+
                     # bookkeeping + plot progress
                     eps_time.update(time.time() - end)
                     end = time.time()
-                    bar.suffix  = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps + 1, maxeps=self.args.numEps, et=eps_time.avg,
+                    bar.suffix = '({eps}/{maxeps}) Eps Time: {et:.3f}s | Total: {total:} | ETA: {eta:}'.format(eps=eps + 1, maxeps=self.args.numEps, et=eps_time.avg,
                                                                                                                total=bar.elapsed_td, eta=bar.eta_td)
                     bar.next()
                 bar.finish()
@@ -134,7 +139,7 @@ class Coach():
                 self.trainExamplesHistory_white.append(iterationTrainExamples_white)
                 self.trainExamplesHistory_black.append(iterationTrainExamples_black)
                 
-            if len(self.trainExamplesHistory_white) > self.args.numItersForTrainExamplesHistory:
+            while len(self.trainExamplesHistory_white) > self.args.numItersForTrainExamplesHistory:
                 print("len(trainExamplesHistory) =", len(self.trainExamplesHistory_white), " => remove the oldest trainExamples")
                 self.trainExamplesHistory_white.pop(0)
                 self.trainExamplesHistory_black.pop(0)
@@ -150,20 +155,36 @@ class Coach():
 
             pmcts = MCTS(self.game, self.white_pnet, self.black_pnet, self.args)
 
-            if train_black:
+            if not self.args.train_both:
+                if train_black:
+                    # shuffle examples before training
+                    trainExamples = []
+                    for e in self.trainExamplesHistory_black:
+                        trainExamples.extend(e)
+                    shuffle(trainExamples)
+                    self.black_nnet.train(trainExamples)
+                else:
+                    # shuffle examples before training
+                    trainExamples = []
+                    for e in self.trainExamplesHistory_white:
+                        trainExamples.extend(e)
+                    shuffle(trainExamples)
+                    self.white_nnet.train(trainExamples)
+            else:
                 # shuffle examples before training
                 trainExamples = []
                 for e in self.trainExamplesHistory_black:
                     trainExamples.extend(e)
                 shuffle(trainExamples)
                 self.black_nnet.train(trainExamples)
-            else:
+
                 # shuffle examples before training
                 trainExamples = []
                 for e in self.trainExamplesHistory_white:
                     trainExamples.extend(e)
                 shuffle(trainExamples)
                 self.white_nnet.train(trainExamples)
+
             nmcts = MCTS(self.game, self.white_nnet, self.black_nnet, self.args)
 
             print('PITTING AGAINST PREVIOUS VERSION')
@@ -189,27 +210,35 @@ class Coach():
             if pwins_color+nwins_color == 0 or float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold \
                     or nwins_other_color < pwins_other_color:
                 print('REJECTING NEW MODEL')
-                if train_black:
-                    self.black_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_black.pth.tar')
+                if not self.args.train_both:
+                    if train_black:
+                        self.black_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_black.pth.tar')
+                    else:
+                        self.white_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_white.pth.tar')
                 else:
+                    self.black_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_black.pth.tar')
                     self.white_nnet.load_checkpoint(folder=self.args.checkpoint, filename='temp_white.pth.tar')
             else:
                 print('ACCEPTING NEW MODEL')
-                if train_black:
-                    # self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
-                    self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
-                    # if nwins_white == 0 or nwins_black / nwins_white >= self.args.train_other_network_threshold:
-                    #     train_black = False
-                    print("training white neural net next")
-                    train_black = False
+                if not self.args.train_both:
+                    if train_black:
+                        # self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.black))
+                        self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
+                        # if nwins_white == 0 or nwins_black / nwins_white >= self.args.train_other_network_threshold:
+                        #     train_black = False
+                        print("training white neural net next")
+                        train_black = False
+                    else:
+                        # self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
+                        self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_white.pth.tar')
+                        # if nwins_black == 0 or nwins_white / nwins_black > self.args.train_other_network_threshold:
+                        #     train_black = True
+                        print("training black neural net next")
+                        train_black = True
                 else:
-                    # self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename=self.getCheckpointFile(i, Player.white))
+                    self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
                     self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_white.pth.tar')
-                    # if nwins_black == 0 or nwins_white / nwins_black > self.args.train_other_network_threshold:
-                    #     train_black = True
-                    print("training black neural net next")
-                    train_black = True
-            self.game.prune_prob += self.args.prune_prob_gain_per_iteration
+                self.game.prune_prob += self.args.prune_prob_gain_per_iteration
             print("increasing prune probability to " + str(self.game.prune_prob))
 
     def getCheckpointFile(self, iteration, player=None):
@@ -245,4 +274,6 @@ class Coach():
             # examples based on the model were already collected (loaded)
 
     def load_expert_examples(self):
-        self.trainExamplesHistory_white, self.trainExamplesHistory_black = read_data(self.args)
+        white, black = read_data(self.args)
+        self.trainExamplesHistory_white.extend(white)
+        self.trainExamplesHistory_black.extend(black)
