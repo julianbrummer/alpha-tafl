@@ -1,6 +1,7 @@
 import copy
 import math
 import random
+import time
 
 import numpy as np
 
@@ -28,7 +29,7 @@ class MCTS():
         self.Es = {}        # stores game.getGameEnded ended for board s
         self.Vs = {}        # stores game.getValidMoves for board s
 
-    def getActionProb(self, canonicalBoard, this_player, temp=1):
+    def getActionProb(self, canonicalBoard, this_player, temp=1, time=None):
         """
         This function performs numMCTSSims simulations of MCTS starting from
         canonicalBoard.
@@ -37,9 +38,14 @@ class MCTS():
             probs: a policy vector where the probability of the ith action is
                    proportional to Nsa[(s,a)]**(1./temp)
         """
-        for i in range(self.args.numMCTSSims):
-            # print("    search number " + str(i))
-            self.search(copy.deepcopy(canonicalBoard), this_player)
+        if time is None:
+            for i in range(self.args.numMCTSSims):
+                # print("    search number " + str(i))
+                self.search(copy.deepcopy(canonicalBoard), this_player)
+        else:
+            timeout = time.time() + time
+            while time.time() < timeout:
+                self.search(copy.deepcopy(canonicalBoard), this_player)
 
         # bytes are much faster
         s = self.game.stringRepresentation(canonicalBoard) + this_player.to_bytes(1, byteorder='big', signed=True)
