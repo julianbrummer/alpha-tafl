@@ -93,7 +93,7 @@ class TaflGame(Game):
         array = np.zeros(self.getActionSize())  # see comment in getActionSize()
                                             # use 0 for horizontal movement indexing, 1 for vertical movement indexing
 
-        if self.prune and random.random() < self.prune_prob:
+        if True:
             non_losing_moves = []
             # white:
             # preferences:

@@ -88,8 +88,8 @@ def read_data(args):
             continue
 
         # print("---------------------------------------------" + str(i))
-        if i in np.array([15, 19, 99, 366, 551, 557, 593, 690, 832, 873, 960, 1034, 1039, 1041]):  # no capture against throne
-            continue
+        # if i in np.array([15, 19, 99, 366, 551, 557, 593, 690, 832, 873, 960, 1034, 1039, 1041]):  # no capture against throne
+        #    continue
 
         if i in np.array([136, 143, 327, 387, 484, 571, 1089]):  # wrong format
             continue

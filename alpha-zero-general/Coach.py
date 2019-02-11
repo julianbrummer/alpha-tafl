@@ -1,5 +1,6 @@
 import cProfile
 import copy
+import math
 from collections import deque
 from multiprocessing.pool import Pool
 
@@ -196,19 +197,8 @@ class Coach():
 
             print('NEW/PREV WINS (white, black) : (%d,%d) / (%d,%d) ; DRAWS : %d' % (nwins_white, nwins_black, pwins_white, pwins_black, draws))
 
-            if train_black:
-                pwins_color = pwins_black
-                nwins_color = nwins_black
-                pwins_other_color = pwins_white
-                nwins_other_color = nwins_white
-            else:
-                pwins_color = pwins_white
-                nwins_color = nwins_white
-                pwins_other_color = pwins_black
-                nwins_other_color = nwins_black
-
-            if pwins_color+nwins_color == 0 or float(nwins_color)/(pwins_color+nwins_color) < self.args.updateThreshold \
-                    or nwins_other_color < pwins_other_color:
+            if pwins+nwins == 0 or float(nwins)/(pwins+nwins) < self.args.updateThreshold \
+                    or nwins_black < pwins_black or nwins_white < pwins_white:
                 print('REJECTING NEW MODEL')
                 if not self.args.train_both:
                     if train_black:
@@ -239,7 +229,11 @@ class Coach():
                     self.black_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_black.pth.tar')
                     self.white_nnet.save_checkpoint(folder=self.args.checkpoint, filename='best_white.pth.tar')
                 self.game.prune_prob += self.args.prune_prob_gain_per_iteration
-            print("increasing prune probability to " + str(self.game.prune_prob))
+                self.args.arenaCompare = math.floor(self.args.arenaCompare * 1.05)
+            # self.args.numEps = math.floor(self.args.numEps * 1.1)
+            self.args.numMCTSSims = math.floor(self.args.numMCTSSims * 1.1)
+            print("prune probability: " + str(self.game.prune_prob) + ", episodes: " + str(self.args.numEps) +
+                  ", sims: " + str(self.args.numMCTSSims) + ", arena compare: " + str(self.args.arenaCompare))
 
     def getCheckpointFile(self, iteration, player=None):
         return 'checkpoint_' + ('white_' if player == Player.white else 'black_' if player == Player.black else '') + str(iteration) + '.pth.tar'
